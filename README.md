@@ -1,5 +1,9 @@
 # RackOps
 
+<img width="1408" height="786" alt="rackops-demo" src="https://github.com/user-attachments/assets/e5370adb-dd7f-42a7-bd72-bf27c0644b1c" />
+
+
+
 An interactive data center operations training lab built with HTML, CSS, and JavaScript.
 
 Explore a simulated rack, investigate a disk-usage alert, perform an approved simulated cleanup, and verify recovery.
