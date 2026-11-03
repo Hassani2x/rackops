@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RackOps</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: #0b1120;
+            color: #e2e8f0;
+            font-family: Arial, sans-serif;
+        }
+        header {
+            padding: 28px;
+            border-bottom: 1px solid #263247;
+        }
+        h1 {
+            margin: 0;
+            color: #67e8f9;
+            font-size: 36px;
+        }
+        header p, .muted {
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+        .badge {
+            display: inline-block;
+            padding: 6px 10px;
+            background: #263247;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+            max-width: 1100px;
+            margin: 32px auto;
+            padding: 0 20px;
+        }
+        .panel {
+            min-width: 0;
+            padding: 24px;
+            background: #111b2e;
+            border: 1px solid #263247;
+            border-radius: 14px;
+        }
+        h2 { margin-top: 0; }
+        .rack {
+            padding: 14px;
+            background: #080d18;
+            border: 8px solid #334155;
+            border-radius: 8px;
+        }
+        .device {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            margin-bottom: 12px;
+            padding: 18px 14px;
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 1px solid #475569;
+            border-radius: 5px;
+            text-align: left;
+            font: inherit;
+            cursor: pointer;
+        }
+        .device:last-child { margin-bottom: 0; }
+        .device:hover { background: #293a52; }
+        button:focus-visible {
+            outline: 3px solid #67e8f9;
+            outline-offset: 3px;
+        }
+        .device[aria-pressed="true"] {
+            background: #163448;
+            border-color: #67e8f9;
+        }
+        .light {
+            flex-shrink: 0;
+            width: 10px;
+            height: 10px;
+            background: #34d399;
+            border-radius: 50%;
+        }
+        .warning { background: #fbbf24; }
+        .unit {
+            flex-shrink: 0;
+            margin-left: auto;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+        dt {
+            margin-top: 20px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+        dd { margin: 6px 0 0; line-height: 1.5; }
+        .incident { grid-column: 1 / -1; }
+        #incidentState { font-weight: bold; }
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .action {
+            padding: 12px 16px;
+            background: #67e8f9;
+            color: #0b1120;
+            border: none;
+            border-radius: 8px;
+            font: inherit;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .secondary { background: #334155; color: #e2e8f0; }
+        .action:disabled { opacity: 0.45; cursor: not-allowed; }
+        pre {
+            padding: 18px;
+            background: #080d18;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            line-height: 1.6;
+        }
+        li { margin-bottom: 10px; line-height: 1.5; }
+        @media (max-width: 700px) {
+            main { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>RackOps</h1>
+        <p>Data Center Operations Lab</p>
+        <span class="badge">
+            Simulation — no live device connections
+        </span>
+    </header>
+
+    <main>
+        <section class="panel">
+            <h2>Rack A01</h2>
+            <p class="muted">
+                Select a device to inspect its inventory
+                and simulated status.
+            </p>
+            <div id="rack" class="rack"></div>
+        </section>
+
+        <section class="panel" aria-live="polite">
+            <h2 id="deviceName">Device Details</h2>
+            <p id="deviceHint" class="muted">
+                Click a device in Rack A01 to view its details.
+            </p>
+            <dl id="details" hidden>
+                <dt>Role</dt><dd id="deviceRole"></dd>
+                <dt>Rack location</dt><dd id="deviceLocation"></dd>
+                <dt>Lab IP address</dt><dd id="deviceIP"></dd>
+                <dt>Simulated status</dt><dd id="deviceStatus"></dd>
+                <dt>Notes</dt><dd id="deviceNotes"></dd>
+            </dl>
+        </section>
+
+        <section class="panel incident">
+            <h2>Incident INC-001 · High Disk Usage</h2>
+            <p class="muted">
+                Investigate the alert, perform the approved
+                simulated cleanup, and verify recovery.
+            </p>
+
+            <p id="incidentState" role="status"></p>
+            <p id="saveStatus" class="muted" role="status"></p>
+
+            <div class="actions">
+                <button class="action" data-step="0">
+                    1. Inspect Disk Usage
+                </button>
+                <button class="action" data-step="1">
+                    2. Inspect Log Files
+                </button>
+                <button class="action" data-step="2">
+                    3. Remove Rotated Logs
+                </button>
+                <button class="action" data-step="3">
+                    4. Verify Recovery
+                </button>
+                <button id="downloadReport" class="action" disabled>
+                    Download Incident Report
+                </button>
+                <button id="resetIncident" class="action secondary">
+                    Reset Lab
+                </button>
+            </div>
+
+            <p class="muted">
+                Actions change simulated data only.
+                Progress is saved in this browser.
+                Reset Lab clears the saved progress.
+                The report becomes available after verification.
+            </p>
+
+            <pre id="commandOutput" role="status"></pre>
+            <h3>Incident Timeline</h3>
+            <ol id="timeline"></ol>
+        </section>
+    </main>
+
+    <script>
+        const storageKey = "rackops.incident.v1";
+
+        const devices = {
+            switch01: {
+                name: "SW-01",
+                role: "Network Switch",
+                unit: "U10",
+                ip: "192.0.2.10",
+                notes: "Connects the servers in this simulated rack."
+            },
+            server01: {
+                name: "SRV-01",
+                role: "Web Server",
+                unit: "U08–09",
+                ip: "192.0.2.21",
+                notes: "Serves the lab website."
+            },
+            server02: {
+                name: "SRV-02",
+                role: "Database Server",
+                unit: "U06–07",
+                ip: "192.0.2.22",
+                notes: "Simulated disk-usage incident."
+            },
+            server03: {
+                name: "SRV-03",
+                role: "Application Server",
+                unit: "U04–05",
+                ip: "192.0.2.23",
+                notes: "Runs the lab application."
+            },
+            storage01: {
+                name: "STOR-01",
+                role: "Storage Server",
+                unit: "U01–03",
+                ip: "192.0.2.30",
+                notes: "Stores simulated backups and shared files."
+            }
+        };
+
+        const stages = [
+            {
+                status: "Open · Disk usage alert: 92%",
+                output: "Select “Inspect Disk Usage” to begin."
+            },
+            {
+                status: "Investigating · High disk usage confirmed",
+                output: [
+                    "SIMULATED OUTPUT · df -h /var",
+                    "",
+                    "Filesystem   Size   Used   Available   Use%   Mounted on",
+                    "/dev/lab     100G   92G    8G          92%    /var",
+                    "",
+                    "Finding: /var exceeds the 90% warning threshold.",
+                    "Next: inspect the log files."
+                ].join("\n")
+            },
+            {
+                status: "Cause identified · Expired logs occupy 30 GB",
+                output: [
+                    "SIMULATED OUTPUT · Log inventory",
+                    "",
+                    "Expired rotated database logs: 30 GB",
+                    "Active database log:            2 GB",
+                    "Other data in /var:            60 GB",
+                    "",
+                    "Finding: expired rotated logs were not cleaned up.",
+                    "Lab approval: remove the expired rotated logs only.",
+                    "Preserve the active log and database files."
+                ].join("\n")
+            },
+            {
+                status: "Verification required · Cleanup completed",
+                output: [
+                    "SIMULATED ACTION · Approved log cleanup",
+                    "",
+                    "Removed: 30 GB of expired rotated logs.",
+                    "Preserved: active log and database files.",
+                    "",
+                    "Next: verify disk usage before resolving the incident."
+                ].join("\n")
+            },
+            {
+                status: "Resolved · Disk usage verified at 62%",
+                output: [
+                    "SIMULATED OUTPUT · df -h /var",
+                    "",
+                    "Filesystem   Size   Used   Available   Use%   Mounted on",
+                    "/dev/lab     100G   62G    38G         62%    /var",
+                    "",
+                    "Verified: usage is below the 90% warning threshold.",
+                    "Incident resolved.",
+                    "",
+                    "Follow-up: configure and test log retention."
+                ].join("\n")
+            }
+        ];
+
+        const timelineMessages = [
+            "Confirmed /var is 92% full.",
+            "Identified 30 GB of expired rotated database logs.",
+            "Removed expired rotated logs; awaiting verification.",
+            "Verified 62% disk usage and resolved INC-001."
+        ];
+
+        function freshState() {
+            return {
+                step: 0,
+                selected: null,
+                timeline: [
+                    "Alert opened: SRV-02 disk usage reached 92%."
+                ]
+            };
+        }
+
+        let state = freshState();
+        let saveMessage = "Progress will save after your next action.";
+
+        try {
+            const saved = localStorage.getItem(storageKey);
+
+            if (saved !== null) {
+                const parsed = JSON.parse(saved);
+
+                if (parsed === null || typeof parsed !== "object") {
+                    throw new Error("Invalid saved progress");
+                }
+
+                const validStep =
+                    Number.isInteger(parsed.step) &&
+                    parsed.step >= 0 &&
+                    parsed.step <= 4;
+
+                const validSelection =
+                    parsed.selected === null ||
+                    (
+                        typeof parsed.selected === "string" &&
+                        Object.prototype.hasOwnProperty.call(
+                            devices, parsed.selected
+                        )
+                    );
+
+                const validTimeline =
+                    Array.isArray(parsed.timeline) &&
+                    parsed.timeline.length === parsed.step + 1 &&
+                    parsed.timeline.every(function(entry) {
+                        return typeof entry === "string";
+                    });
+
+                if (!validStep || !validSelection || !validTimeline) {
+                    throw new Error("Invalid saved progress");
+                }
+
+                state = {
+                    step: parsed.step,
+                    selected: parsed.selected,
+                    timeline: parsed.timeline
+                };
+
+                saveMessage = "Saved progress restored.";
+            }
+        } catch (error) {
+            saveMessage =
+                "Saved progress could not be loaded. Starting a fresh lab.";
+        }
+
+        function saveProgress() {
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(state));
+                saveMessage = "Progress saved in this browser.";
+            } catch (error) {
+                saveMessage =
+                    "Browser storage is unavailable. Progress will last " +
+                    "only while this page stays open.";
+            }
+        }
+
+        function databaseStatus() {
+            return state.step === 4 ? "Healthy" : "Warning";
+        }
+
+        function deviceNotes(id) {
+            if (id !== "server02") return devices[id].notes;
+            if (state.step === 4) {
+                return "Disk usage verified at 62% after simulated cleanup.";
+            }
+            if (state.step === 3) {
+                return "Cleanup completed. Recovery verification pending.";
+            }
+            return "Simulated alert: disk usage has reached 92%.";
+        }
+
+        function renderRack() {
+            const rack = document.getElementById("rack");
+            rack.replaceChildren();
+
+            Object.entries(devices).forEach(function([id, device]) {
+                const button = document.createElement("button");
+                button.className = "device";
+                button.setAttribute(
+                    "aria-pressed", String(state.selected === id)
+                );
+
+                const warning = id === "server02" && state.step !== 4;
+                const light = document.createElement("span");
+                light.className = warning ? "light warning" : "light";
+                light.setAttribute("aria-hidden", "true");
+
+                const label = document.createElement("span");
+                label.textContent = device.name + " · " + device.role;
+                if (id === "server02") {
+                    label.textContent += " · " + databaseStatus();
+                }
+
+                const unit = document.createElement("span");
+                unit.className = "unit";
+                unit.textContent = device.unit;
+
+                button.append(light, label, unit);
+                button.addEventListener("click", function() {
+                    state.selected = id;
+                    saveProgress();
+                    render();
+                });
+                rack.append(button);
+            });
+        }
+
+        function renderDetails() {
+            const device = state.selected === null
+                ? null : devices[state.selected];
+
+            document.getElementById("deviceHint").hidden = Boolean(device);
+            document.getElementById("details").hidden = !device;
+            document.getElementById("deviceName").textContent =
+                device ? device.name : "Device Details";
+
+            if (!device) return;
+
+            document.getElementById("deviceRole").textContent = device.role;
+            document.getElementById("deviceLocation").textContent =
+                "Rack A01 · " + device.unit;
+            document.getElementById("deviceIP").textContent = device.ip;
+            document.getElementById("deviceStatus").textContent =
+                state.selected === "server02" ? databaseStatus() : "Healthy";
+            document.getElementById("deviceNotes").textContent =
+                deviceNotes(state.selected);
+        }
+
+        function render() {
+            renderRack();
+            renderDetails();
+
+            const stage = stages[state.step];
+            const status = document.getElementById("incidentState");
+            status.textContent = stage.status;
+            status.style.color =
+                state.step === 4 ? "#34d399" : "#fbbf24";
+
+            document.getElementById("commandOutput").textContent =
+                stage.output;
+            document.getElementById("saveStatus").textContent =
+                saveMessage;
+
+            document.querySelectorAll("[data-step]").forEach(
+                function(button) {
+                    button.disabled =
+                        Number(button.dataset.step) !== state.step;
+                }
+            );
+
+            document.getElementById("downloadReport").disabled =
+                state.step !== 4;
+
+            const timeline = document.getElementById("timeline");
+            timeline.replaceChildren();
+            state.timeline.forEach(function(message) {
+                const entry = document.createElement("li");
+                entry.textContent = message;
+                timeline.append(entry);
+            });
+        }
+
+        document.querySelectorAll("[data-step]").forEach(
+            function(button) {
+                button.addEventListener("click", function() {
+                    const expectedStep = Number(button.dataset.step);
+                    if (state.step !== expectedStep) return;
+
+                    state.timeline.push(
+                        new Date().toLocaleTimeString() + " — " +
+                        timelineMessages[state.step]
+                    );
+                    state.step += 1;
+                    state.selected = "server02";
+                    saveProgress();
+                    render();
+                });
+            }
+        );
+
+        document.getElementById("downloadReport").addEventListener(
+            "click",
+            function() {
+                if (state.step !== 4) return;
+
+                const report = [
+                    "RACKOPS · INCIDENT REPORT",
+                    "SIMULATED TRAINING LAB",
+                    "",
+                    "Incident: INC-001 · High Disk Usage",
+                    "Status: Resolved",
+                    "Device: SRV-02 · Database Server",
+                    "Location: Rack A01 · U06–07",
+                    "Lab IP: 192.0.2.22",
+                    "Report generated: " + new Date().toISOString(),
+                    "",
+                    "INITIAL FINDING",
+                    "/var usage: 92 GB of 100 GB (92%).",
+                    "Warning threshold: 90%.",
+                    "",
+                    "IDENTIFIED CAUSE",
+                    "Expired rotated database logs occupied 30 GB.",
+                    "",
+                    "CORRECTIVE ACTION",
+                    "Removed 30 GB of expired rotated logs in the simulation.",
+                    "Preserved the active log and database files.",
+                    "",
+                    "VERIFICATION",
+                    "/var usage: 62 GB of 100 GB (62%).",
+                    "Usage fell below the warning threshold.",
+                    "Simulated device status changed to Healthy.",
+                    "",
+                    "FOLLOW-UP",
+                    "Configure and test log retention to prevent recurrence.",
+                    "",
+                    "INCIDENT TIMELINE",
+                    ...state.timeline,
+                    "",
+                    "All findings and actions are simulated.",
+                    "No live device commands or real file deletions occurred."
+                ].join("\n");
+
+                const file = new Blob(
+                    [report], { type: "text/plain;charset=utf-8" }
+                );
+                const url = URL.createObjectURL(file);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "RackOps-INC-001-report.txt";
+                document.body.append(link);
+                link.click();
+                link.remove();
+
+                setTimeout(function() {
+                    URL.revokeObjectURL(url);
+                }, 10000);
+            }
+        );
+
+        document.getElementById("resetIncident").addEventListener(
+            "click",
+            function() {
+                state = freshState();
+                try {
+                    localStorage.removeItem(storageKey);
+                    saveMessage =
+                        "Lab reset. Previous saved progress cleared.";
+                } catch (error) {
+                    saveMessage =
+                        "Lab reset for this page. Browser storage " +
+                        "could not be cleared.";
+                }
+                render();
+            }
+        );
+
+        render();
+    </script>
+</body>
+</html>
