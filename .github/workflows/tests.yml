@@ -1,0 +1,20 @@
+name: RackOps Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  structure-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download repository
+        uses: actions/checkout@v4
+
+      - name: Run HTML structure checks
+        run: python3 test_rackops.py
