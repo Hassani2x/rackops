@@ -23,7 +23,7 @@ Explore a simulated rack, investigate incidents, gather evidence, apply correcti
 - Separate reset buttons for each lab
 - Responsive dark interface
 - Operations dashboard showing healthy devices, devices needing attention, open incidents, and resolved incidents
-- 12 automated checks: six structure checks and six browser tests
+- 17 automated checks: 7 structure checks and 10 browser tests
 - GitHub Actions runs both test suites on pushes and pull requests
 
 ## Incident 1: High Disk Usage
