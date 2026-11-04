@@ -94,7 +94,7 @@ class RackOpsBrowserTests(unittest.TestCase):
         self.page.locator("#networkVerify").click()
 
     def test_fresh_dashboard(self):
-        self.assert_counts(3, 2, 2, 0)
+        self.assert_counts(2, 3, 3, 0)
         expect(self.page.locator("#diskReport")).to_be_disabled()
         expect(self.page.locator("#networkReport")).to_be_disabled()
 
@@ -105,7 +105,7 @@ class RackOpsBrowserTests(unittest.TestCase):
             ).click()
 
         # Cleanup alone must not resolve the incident.
-        self.assert_counts(3, 2, 2, 0)
+        self.assert_counts(2, 3, 3, 0)
         expect(self.page.locator("#diskStatus")).to_contain_text(
             "Verification required"
         )
@@ -113,7 +113,7 @@ class RackOpsBrowserTests(unittest.TestCase):
 
         self.page.locator('[data-disk-step="3"]').click()
 
-        self.assert_counts(4, 1, 1, 1)
+        self.assert_counts(3, 2, 2, 1)
         expect(self.page.locator("#diskStatus")).to_contain_text(
             "Resolved"
         )
@@ -131,14 +131,14 @@ class RackOpsBrowserTests(unittest.TestCase):
         expect(self.page.locator("#networkOutput")).to_contain_text(
             "Recovery is not verified"
         )
-        self.assert_counts(3, 2, 2, 0)
+        self.assert_counts(2, 3, 3, 0)
         expect(self.page.locator("#networkReport")).to_be_disabled()
 
     def test_network_fix_then_verification(self):
         self.gather_network_evidence()
         self.page.locator('[data-net="vlan"]').click()
 
-        self.assert_counts(3, 2, 2, 0)
+        self.assert_counts(2, 3, 3, 0)
         expect(self.page.locator("#networkStatus")).to_contain_text(
             "Verification required"
         )
@@ -146,7 +146,7 @@ class RackOpsBrowserTests(unittest.TestCase):
 
         self.page.locator("#networkVerify").click()
 
-        self.assert_counts(4, 1, 1, 1)
+        self.assert_counts(3, 2, 2, 1)
         expect(self.page.locator("#networkOutput")).to_contain_text(
             "Gateway 192.0.2.1: PASS"
         )
@@ -160,14 +160,14 @@ class RackOpsBrowserTests(unittest.TestCase):
     def test_reset_and_refresh_preserve_other_incident(self):
         self.complete_disk()
         self.complete_network()
-        self.assert_counts(5, 0, 0, 2)
+        self.assert_counts(4, 1, 1, 2)
 
         self.page.locator("#networkReset").click()
-        self.assert_counts(4, 1, 1, 1)
+        self.assert_counts(3, 2, 2, 1)
 
         self.page.reload()
 
-        self.assert_counts(4, 1, 1, 1)
+        self.assert_counts(3, 2, 2, 1)
         expect(self.page.locator("#diskStatus")).to_contain_text(
             "Resolved"
         )
@@ -193,6 +193,58 @@ class RackOpsBrowserTests(unittest.TestCase):
         self.assertIn("Status: Resolved", report)
         self.assertIn("access VLAN 30; expected VLAN 20", report)
         self.assertIn("gateway and web-server connectivity passed", report)
+
+    def complete_power(self):
+        for action in ["psu", "feeds", "events", "replace"]:
+            self.page.locator('[data-power="{}"]'.format(action)).click()
+        self.page.locator("#powerVerify").click()
+
+    def test_power_requires_evidence_and_verification(self):
+        self.page.locator('[data-power="replace"]').click()
+        expect(self.page.locator("#powerOutput")).to_contain_text("More evidence required")
+        self.page.locator("#powerVerify").click()
+        expect(self.page.locator("#powerStatus")).to_contain_text("Open")
+        for action in ["psu", "feeds", "events"]:
+            self.page.locator('[data-power="{}"]'.format(action)).click()
+        self.page.locator('[data-power="replace"]').click()
+        self.assert_counts(2, 3, 3, 0)
+        expect(self.page.locator("#powerStatus")).to_contain_text("Verification required")
+        expect(self.page.locator("#powerReport")).to_be_disabled()
+        self.page.locator("#powerVerify").click()
+        self.assert_counts(3, 2, 2, 1)
+        expect(self.page.locator("#deviceStatus")).to_have_text("Healthy")
+        self.page.reload()
+        expect(self.page.locator("#powerStatus")).to_contain_text("Resolved")
+
+    def test_power_preserves_remaining_feed(self):
+        self.page.locator('[data-power="disconnect"]').click()
+        expect(self.page.locator("#powerOutput")).to_contain_text("Blocked")
+        self.page.locator('[data-power="reboot"]').click()
+        expect(self.page.locator("#powerOutput")).to_contain_text("No reboot performed")
+        self.assert_counts(2, 3, 3, 0)
+
+    def test_all_resolved_then_power_reset(self):
+        self.complete_disk()
+        self.complete_network()
+        self.complete_power()
+        self.assert_counts(5, 0, 0, 3)
+        self.page.locator("#powerReset").click()
+        self.page.reload()
+        self.assert_counts(4, 1, 1, 2)
+        expect(self.page.locator("#diskStatus")).to_contain_text("Resolved")
+        expect(self.page.locator("#networkStatus")).to_contain_text("Resolved")
+        expect(self.page.locator("#powerStatus")).to_contain_text("Open")
+
+    def test_power_report_download(self):
+        self.complete_power()
+        with self.page.expect_download() as info:
+            self.page.locator("#powerReport").click()
+        download = info.value
+        self.assertEqual(download.suggested_filename, "RackOps-INC-003-report.txt")
+        report = Path(download.path()).read_text(encoding="utf-8")
+        self.assertIn("Status: Resolved", report)
+        self.assertIn("PSU A internal fault", report)
+        self.assertIn("redundancy restored", report)
 
 
 if __name__ == "__main__":

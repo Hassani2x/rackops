@@ -160,7 +160,7 @@
         <section class="panel wide">
             <h2>Operations Dashboard</h2>
             <p class="muted">
-                Five simulated devices and two incident labs.
+                Five simulated devices and three incident labs.
                 Devices remain in attention until recovery is verified.
             </p>
             <dl class="stats">
@@ -301,10 +301,36 @@
             <h3>Network Incident Timeline</h3>
             <ol id="networkTimeline"></ol>
         </section>
+
+        <section class="panel wide">
+            <h2>INC-003 · SRV-01 Power Redundancy Lost</h2>
+            <p class="muted">SRV-01 remains online on PSU B. Investigate PSU A and both feeds before choosing an approved simulated repair.</p>
+            <p class="muted">Lab procedure: only PSU A is approved for simulated hot replacement. Preserve PSU B and its feed. Real work requires the equipment procedure, authorization, and qualified personnel.</p>
+            <p id="powerStatus" class="status" role="status"></p>
+            <h3>Gather Evidence</h3>
+            <div class="actions">
+                <button class="action" data-power="psu">Inspect PSU Health</button>
+                <button class="action" data-power="feeds">Inspect Power Feeds</button>
+                <button class="action" data-power="events">Inspect Event Log</button>
+            </div>
+            <h3>Choose a Corrective Action</h3>
+            <div class="actions">
+                <button class="action secondary" data-power="reboot">Reboot Server</button>
+                <button class="action secondary" data-power="disconnect">Disconnect Feed B</button>
+                <button class="action" data-power="replace">Replace Failed PSU A</button>
+                <button id="powerVerify" class="action">Verify Power Redundancy</button>
+                <button id="powerReport" class="action" disabled>Download Power Report</button>
+                <button id="powerReset" class="action secondary">Reset Power Lab</button>
+            </div>
+            <pre id="powerOutput" role="status"></pre>
+            <h3>Power Incident Timeline</h3>
+            <ol id="powerTimeline"></ol>
+        </section>
     </main>
 
     <script>
         const diskKey = "rackops.incident.v1";
+        const powerKey = "rackops.power.v1";
         const networkKey = "rackops.network.v1";
         let saveMessage = "Progress saves after an action.";
 
@@ -476,11 +502,29 @@
             }
         }
 
+
+        function freshPower() {
+            return {checkedPSU: false, checkedFeeds: false, checkedEvents: false,
+                replaced: false, resolved: false,
+                output: "Choose an inspection to investigate the lost redundancy.",
+                timeline: ["Alert opened: PSU A fault; SRV-01 online on PSU B."]};
+        }
+        function validPower(value) {
+            if (!value || typeof value.output !== "string" || !validTimeline(value.timeline)) return false;
+            if (!["checkedPSU", "checkedFeeds", "checkedEvents", "replaced", "resolved"].every(function(key) {
+                return typeof value[key] === "boolean";
+            })) return false;
+            return (!value.replaced || (value.checkedPSU && value.checkedFeeds && value.checkedEvents)) &&
+                (!value.resolved || value.replaced);
+        }
+
+        let power = loadState(powerKey, freshPower, validPower);
         let disk = loadState(diskKey, freshDisk, validDisk);
         let network = loadState(networkKey, freshNetwork, validNetwork);
 
         function save() {
             try {
+                localStorage.setItem(powerKey, JSON.stringify(power));
                 localStorage.setItem(diskKey, JSON.stringify(disk));
                 localStorage.setItem(networkKey, JSON.stringify(network));
                 saveMessage = "Progress saved in this browser.";
@@ -496,6 +540,8 @@
         }
 
         function deviceStatus(id) {
+            if (id === "server01") return power.resolved ? "Healthy" :
+                power.replaced ? "Verification pending" : "Redundancy lost";
             if (id === "server02") {
                 return disk.step === 4 ? "Healthy" : "Warning";
             }
@@ -507,6 +553,10 @@
         }
 
         function deviceNotes(id) {
+            if (id === "server01") return power.resolved ?
+                "Both PSUs healthy; independent feeds verified." : power.replaced ?
+                "PSU A replaced in simulation; verification pending. Server online." :
+                "PSU A fault. Server remains online on PSU B.";
             if (id === "server02") {
                 if (disk.step === 4) return "Disk usage verified at 62%.";
                 if (disk.step === 3) return "Cleanup complete; verification pending.";
@@ -531,8 +581,8 @@
             }).length;
 
             const resolved =
-                Number(disk.step === 4) + Number(network.resolved);
-            const open = 2 - resolved;
+                Number(disk.step === 4) + Number(network.resolved) + Number(power.resolved);
+            const open = 3 - resolved;
 
             document.getElementById("healthyCount").textContent = healthy;
             document.getElementById("attentionCount").textContent =
@@ -541,7 +591,7 @@
             document.getElementById("resolvedCount").textContent = resolved;
             document.getElementById("dashboardSummary").textContent =
                 healthy + " of " + total + " devices healthy. " +
-                resolved + " of 2 incidents resolved.";
+                resolved + " of 3 incidents resolved.";
         }
 
         function renderRack() {
@@ -568,7 +618,7 @@
 
                 const label = document.createElement("span");
                 label.textContent = device.name + " · " + device.role;
-                if (id === "server02" || id === "server03") {
+                if (id === "server01" || id === "server02" || id === "server03") {
                     label.textContent += " · " + status;
                 }
 
@@ -614,6 +664,7 @@
         }
 
         function render() {
+            renderPower();
             renderDashboard();
             renderRack();
             document.getElementById("saveStatus").textContent = saveMessage;
@@ -923,6 +974,82 @@
             network = freshNetwork();
             save();
             render();
+        });
+
+
+        function renderPower() {
+            const status = document.getElementById("powerStatus");
+            status.textContent = power.resolved ? "Resolved · Power redundancy verified" :
+                power.replaced ? "Verification required · PSU A replaced" :
+                "Open · Redundancy lost; server online on PSU B";
+            status.style.color = power.resolved ? "#34d399" : "#fbbf24";
+            document.getElementById("powerOutput").textContent = power.output;
+            document.querySelectorAll("[data-power]").forEach(function(button) {
+                button.disabled = power.resolved;
+            });
+            document.getElementById("powerVerify").disabled = power.resolved;
+            document.getElementById("powerReport").disabled = !power.resolved;
+            renderTimeline("powerTimeline", power.timeline);
+        }
+        document.querySelectorAll("[data-power]").forEach(function(button) {
+            button.addEventListener("click", function() {
+                if (power.resolved) return;
+                disk.selected = "server01";
+                const action = button.dataset.power;
+                let message;
+                if (action === "psu") {
+                    power.checkedPSU = true;
+                    message = power.replaced ? "PSU A healthy. PSU B healthy. Server online." :
+                        "PSU A: internal fault, no DC output. PSU B: healthy, carrying server load. Server online.";
+                } else if (action === "feeds") {
+                    power.checkedFeeds = true;
+                    message = "Feed A: available, cable seated. Feed B: available, cable seated. Feeds are independent. Both PSU inputs have power.";
+                } else if (action === "events") {
+                    power.checkedEvents = true;
+                    message = "Event log: PSU A internal fault; redundancy lost. No feed-loss event. Server remains online on PSU B.";
+                } else if (action === "reboot") {
+                    message = "No reboot performed. A reboot does not repair an internal PSU fault and would interrupt the running server.";
+                } else if (action === "disconnect") {
+                    message = "Blocked: Feed B supports the only working PSU. Disconnecting it would remove the remaining power path. No change made.";
+                } else if (!power.checkedPSU || !power.checkedFeeds || !power.checkedEvents) {
+                    message = "More evidence required: inspect PSU health, both power feeds, and the event log before replacement.";
+                } else if (power.replaced) {
+                    message = "PSU A is already replaced. Verify power redundancy.";
+                } else {
+                    power.replaced = true;
+                    message = "Approved simulated replacement: failed PSU A replaced with a compatible unit. PSU B and Feed B preserved; server remains online. Verify redundancy before resolving.";
+                }
+                power.output = "SIMULATED LAB OUTPUT\n\n" + message;
+                logEvent(power.timeline, message);
+                save(); render();
+            });
+        });
+        document.getElementById("powerVerify").addEventListener("click", function() {
+            if (power.resolved) return;
+            disk.selected = "server01";
+            power.resolved = power.replaced;
+            const message = power.resolved ?
+                "PSU A: PASS. PSU B: PASS. Independent feeds: PASS. Redundancy restored. Server remained online. INC-003 resolved." :
+                "Redundancy verification failed: PSU A still faulted. Server online on PSU B. Incident remains open.";
+            power.output = "SIMULATED RECOVERY CHECK\n\n" + message;
+            logEvent(power.timeline, message);
+            save(); render();
+        });
+        document.getElementById("powerReset").addEventListener("click", function() {
+            power = freshPower(); save(); render();
+        });
+        document.getElementById("powerReport").addEventListener("click", function() {
+            if (!power.resolved) return;
+            downloadReport("RackOps-INC-003-report.txt", [
+                "Incident: INC-003 · Power Redundancy Lost", "Status: Resolved",
+                "Device: SRV-01 · Web Server", "Location: Rack A01 · U08–09",
+                "Finding: server online on PSU B; redundancy lost.",
+                "Evidence: both independent feeds available; PSU A internal fault.",
+                "Action: approved simulated replacement of PSU A; preserved PSU B.",
+                "Verification: both PSUs healthy; independent feeds verified; redundancy restored.",
+                "Follow-up: record replacement and review hardware fault monitoring.",
+                "", "TIMELINE", ...power.timeline
+            ]);
         });
 
         render();

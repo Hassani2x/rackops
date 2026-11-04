@@ -79,8 +79,11 @@ class RackOpsTests(unittest.TestCase):
             "JavaScript references missing page elements."
         )
 
-    def test_both_incident_panels_exist(self):
+    def test_all_incident_panels_exist(self):
         required = {
+            "powerStatus", "powerOutput", "powerTimeline",
+            "powerReport", "powerReset", "powerVerify",
+            "healthyCount", "attentionCount", "openCount", "resolvedCount",
             "diskStatus",
             "diskOutput",
             "diskTimeline",
@@ -128,6 +131,10 @@ class RackOpsTests(unittest.TestCase):
             "A network inspection or corrective action is missing."
         )
 
+    def test_power_actions_are_complete_and_unique(self):
+        actions = [b["data-power"] for b in self.page.buttons if "data-power" in b]
+        self.assertCountEqual(actions, ["psu", "feeds", "events", "reboot", "disconnect", "replace"])
+
     def test_reports_start_disabled(self):
         buttons = {
             button["id"]: button
@@ -135,7 +142,7 @@ class RackOpsTests(unittest.TestCase):
             if "id" in button
         }
 
-        for report_id in ["diskReport", "networkReport"]:
+        for report_id in ["diskReport", "networkReport", "powerReport"]:
             with self.subTest(report=report_id):
                 self.assertIn(report_id, buttons)
                 self.assertIn(
