@@ -16,15 +16,9 @@
             padding: 28px;
             border-bottom: 1px solid #263247;
         }
-        h1 {
-            margin: 0;
-            color: #67e8f9;
-            font-size: 36px;
-        }
-        header p, .muted {
-            color: #94a3b8;
-            line-height: 1.6;
-        }
+        h1 { margin: 0; color: #67e8f9; font-size: 36px; }
+        h2 { margin-top: 0; }
+        header p, .muted { color: #94a3b8; line-height: 1.6; }
         .badge {
             display: inline-block;
             padding: 6px 10px;
@@ -47,7 +41,6 @@
             border: 1px solid #263247;
             border-radius: 14px;
         }
-        h2 { margin-top: 0; }
         .rack {
             padding: 14px;
             background: #080d18;
@@ -71,13 +64,13 @@
         }
         .device:last-child { margin-bottom: 0; }
         .device:hover { background: #293a52; }
-        button:focus-visible {
-            outline: 3px solid #67e8f9;
-            outline-offset: 3px;
-        }
         .device[aria-pressed="true"] {
             background: #163448;
             border-color: #67e8f9;
+        }
+        button:focus-visible {
+            outline: 3px solid #67e8f9;
+            outline-offset: 3px;
         }
         .light {
             flex-shrink: 0;
@@ -87,27 +80,23 @@
             border-radius: 50%;
         }
         .warning { background: #fbbf24; }
+        .down { background: #fb7185; }
         .unit {
             flex-shrink: 0;
             margin-left: auto;
             color: #94a3b8;
             font-size: 13px;
         }
-        dt {
-            margin-top: 20px;
-            color: #94a3b8;
-            font-size: 14px;
-        }
+        dt { margin-top: 20px; color: #94a3b8; font-size: 14px; }
         dd { margin: 6px 0 0; line-height: 1.5; }
-        .incident { grid-column: 1 / -1; }
-        #incidentState { font-weight: bold; }
+        .wide { grid-column: 1 / -1; }
         .actions {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
             margin: 20px 0;
         }
-        .action {
+        button.action {
             padding: 12px 16px;
             background: #67e8f9;
             color: #0b1120;
@@ -117,8 +106,8 @@
             font-weight: bold;
             cursor: pointer;
         }
-        .secondary { background: #334155; color: #e2e8f0; }
-        .action:disabled { opacity: 0.45; cursor: not-allowed; }
+        button.secondary { background: #334155; color: #e2e8f0; }
+        button:disabled { opacity: 0.45; cursor: not-allowed; }
         pre {
             padding: 18px;
             background: #080d18;
@@ -129,6 +118,7 @@
             line-height: 1.6;
         }
         li { margin-bottom: 10px; line-height: 1.5; }
+        .status { font-weight: bold; color: #fbbf24; }
         @media (max-width: 700px) {
             main { grid-template-columns: 1fr; }
         }
@@ -138,26 +128,21 @@
     <header>
         <h1>RackOps</h1>
         <p>Data Center Operations Lab</p>
-        <span class="badge">
-            Simulation — no live device connections
-        </span>
+        <span class="badge">Simulation — no live device connections</span>
     </header>
 
     <main>
         <section class="panel">
             <h2>Rack A01</h2>
             <p class="muted">
-                Select a device to inspect its inventory
-                and simulated status.
+                Select a device to inspect its inventory and simulated status.
             </p>
             <div id="rack" class="rack"></div>
         </section>
 
         <section class="panel" aria-live="polite">
             <h2 id="deviceName">Device Details</h2>
-            <p id="deviceHint" class="muted">
-                Click a device in Rack A01 to view its details.
-            </p>
+            <p id="deviceHint" class="muted">Select a device in Rack A01.</p>
             <dl id="details" hidden>
                 <dt>Role</dt><dd id="deviceRole"></dd>
                 <dt>Rack location</dt><dd id="deviceLocation"></dd>
@@ -167,105 +152,145 @@
             </dl>
         </section>
 
-        <section class="panel incident">
-            <h2>Incident INC-001 · High Disk Usage</h2>
-            <p class="muted">
-                Investigate the alert, perform the approved
-                simulated cleanup, and verify recovery.
-            </p>
-
-            <p id="incidentState" role="status"></p>
+        <section class="panel wide">
             <p id="saveStatus" class="muted" role="status"></p>
+            <p class="muted">
+                All outputs and actions are simulated.
+                No system commands run and no real files are deleted.
+                Progress saves in this browser.
+            </p>
+        </section>
+
+        <section class="panel wide">
+            <h2>INC-001 · High Disk Usage</h2>
+            <p class="muted">
+                Investigate SRV-02, perform the approved cleanup,
+                and verify recovery.
+            </p>
+            <p id="diskStatus" class="status" role="status"></p>
 
             <div class="actions">
-                <button class="action" data-step="0">
+                <button class="action" data-disk-step="0">
                     1. Inspect Disk Usage
                 </button>
-                <button class="action" data-step="1">
+                <button class="action" data-disk-step="1">
                     2. Inspect Log Files
                 </button>
-                <button class="action" data-step="2">
+                <button class="action" data-disk-step="2">
                     3. Remove Rotated Logs
                 </button>
-                <button class="action" data-step="3">
+                <button class="action" data-disk-step="3">
                     4. Verify Recovery
                 </button>
-                <button id="downloadReport" class="action" disabled>
-                    Download Incident Report
+                <button id="diskReport" class="action" disabled>
+                    Download Disk Report
                 </button>
-                <button id="resetIncident" class="action secondary">
-                    Reset Lab
+                <button id="diskReset" class="action secondary">
+                    Reset Disk Lab
                 </button>
             </div>
 
-            <p class="muted">
-                Actions change simulated data only.
-                Progress is saved in this browser.
-                Reset Lab clears the saved progress.
-                The report becomes available after verification.
-            </p>
+            <pre id="diskOutput" role="status"></pre>
+            <h3>Disk Incident Timeline</h3>
+            <ol id="diskTimeline"></ol>
+        </section>
 
-            <pre id="commandOutput" role="status"></pre>
-            <h3>Incident Timeline</h3>
-            <ol id="timeline"></ol>
+        <section class="panel wide">
+            <h2>INC-002 · SRV-03 Network Outage</h2>
+            <p class="muted">
+                SRV-03 cannot reach its gateway or other lab servers.
+                Choose what to inspect, compare the evidence with the
+                expected configuration, and apply an approved fix.
+            </p>
+            <p class="muted">
+                Expected configuration: IP 192.0.2.23/24,
+                gateway 192.0.2.1, switch SW-01 port Gi0/3,
+                access VLAN 20.
+            </p>
+            <p id="networkStatus" class="status" role="status"></p>
+
+            <h3>Gather Evidence</h3>
+            <div class="actions">
+                <button class="action" data-net="ip">Inspect IP Configuration</button>
+                <button class="action" data-net="port">Inspect Switch Port</button>
+                <button class="action" data-net="ping">Test Gateway Connectivity</button>
+            </div>
+
+            <h3>Choose a Corrective Action</h3>
+            <div class="actions">
+                <button class="action secondary" data-net="renew">
+                    Renew IP Configuration
+                </button>
+                <button class="action secondary" data-net="enable">
+                    Enable Switch Port
+                </button>
+                <button class="action" data-net="vlan">
+                    Set Access VLAN to 20
+                </button>
+            </div>
+
+            <div class="actions">
+                <button id="networkVerify" class="action">
+                    Verify Network Recovery
+                </button>
+                <button id="networkReport" class="action" disabled>
+                    Download Network Report
+                </button>
+                <button id="networkReset" class="action secondary">
+                    Reset Network Lab
+                </button>
+            </div>
+
+            <pre id="networkOutput" role="status"></pre>
+            <h3>Network Incident Timeline</h3>
+            <ol id="networkTimeline"></ol>
         </section>
     </main>
 
     <script>
-        const storageKey = "rackops.incident.v1";
+        const diskKey = "rackops.incident.v1";
+        const networkKey = "rackops.network.v1";
+        let saveMessage = "Progress saves after an action.";
 
         const devices = {
             switch01: {
-                name: "SW-01",
-                role: "Network Switch",
-                unit: "U10",
-                ip: "192.0.2.10",
+                name: "SW-01", role: "Network Switch",
+                unit: "U10", ip: "192.0.2.10",
                 notes: "Connects the servers in this simulated rack."
             },
             server01: {
-                name: "SRV-01",
-                role: "Web Server",
-                unit: "U08–09",
-                ip: "192.0.2.21",
+                name: "SRV-01", role: "Web Server",
+                unit: "U08–09", ip: "192.0.2.21",
                 notes: "Serves the lab website."
             },
             server02: {
-                name: "SRV-02",
-                role: "Database Server",
-                unit: "U06–07",
-                ip: "192.0.2.22",
-                notes: "Simulated disk-usage incident."
+                name: "SRV-02", role: "Database Server",
+                unit: "U06–07", ip: "192.0.2.22"
             },
             server03: {
-                name: "SRV-03",
-                role: "Application Server",
-                unit: "U04–05",
-                ip: "192.0.2.23",
-                notes: "Runs the lab application."
+                name: "SRV-03", role: "Application Server",
+                unit: "U04–05", ip: "192.0.2.23"
             },
             storage01: {
-                name: "STOR-01",
-                role: "Storage Server",
-                unit: "U01–03",
-                ip: "192.0.2.30",
+                name: "STOR-01", role: "Storage Server",
+                unit: "U01–03", ip: "192.0.2.30",
                 notes: "Stores simulated backups and shared files."
             }
         };
 
-        const stages = [
+        const diskStages = [
             {
                 status: "Open · Disk usage alert: 92%",
-                output: "Select “Inspect Disk Usage” to begin."
+                output: "Select Inspect Disk Usage to begin."
             },
             {
                 status: "Investigating · High disk usage confirmed",
                 output: [
                     "SIMULATED OUTPUT · df -h /var",
                     "",
-                    "Filesystem   Size   Used   Available   Use%   Mounted on",
-                    "/dev/lab     100G   92G    8G          92%    /var",
+                    "Size: 100 GB | Used: 92 GB | Available: 8 GB",
+                    "Usage: 92% | Warning threshold: 90%",
                     "",
-                    "Finding: /var exceeds the 90% warning threshold.",
                     "Next: inspect the log files."
                 ].join("\n")
             },
@@ -275,23 +300,21 @@
                     "SIMULATED OUTPUT · Log inventory",
                     "",
                     "Expired rotated database logs: 30 GB",
-                    "Active database log:            2 GB",
-                    "Other data in /var:            60 GB",
+                    "Active database log: 2 GB",
+                    "Other data: 60 GB",
                     "",
-                    "Finding: expired rotated logs were not cleaned up.",
-                    "Lab approval: remove the expired rotated logs only.",
-                    "Preserve the active log and database files."
+                    "Approved action: remove expired rotated logs only.",
+                    "Preserve active logs and database files."
                 ].join("\n")
             },
             {
                 status: "Verification required · Cleanup completed",
                 output: [
-                    "SIMULATED ACTION · Approved log cleanup",
+                    "SIMULATED ACTION · Approved cleanup",
                     "",
-                    "Removed: 30 GB of expired rotated logs.",
-                    "Preserved: active log and database files.",
-                    "",
-                    "Next: verify disk usage before resolving the incident."
+                    "Removed 30 GB of expired rotated logs.",
+                    "Preserved active logs and database files.",
+                    "Verify disk usage before resolving the incident."
                 ].join("\n")
             },
             {
@@ -299,109 +322,150 @@
                 output: [
                     "SIMULATED OUTPUT · df -h /var",
                     "",
-                    "Filesystem   Size   Used   Available   Use%   Mounted on",
-                    "/dev/lab     100G   62G    38G         62%    /var",
+                    "Size: 100 GB | Used: 62 GB | Available: 38 GB",
+                    "Usage: 62% | Warning threshold: 90%",
                     "",
-                    "Verified: usage is below the 90% warning threshold.",
-                    "Incident resolved.",
-                    "",
+                    "Recovery verified. Incident resolved.",
                     "Follow-up: configure and test log retention."
                 ].join("\n")
             }
         ];
 
-        const timelineMessages = [
+        const diskEvents = [
             "Confirmed /var is 92% full.",
             "Identified 30 GB of expired rotated database logs.",
             "Removed expired rotated logs; awaiting verification.",
             "Verified 62% disk usage and resolved INC-001."
         ];
 
-        function freshState() {
+        function freshDisk() {
             return {
                 step: 0,
                 selected: null,
-                timeline: [
-                    "Alert opened: SRV-02 disk usage reached 92%."
-                ]
+                timeline: ["Alert opened: SRV-02 disk usage reached 92%."]
             };
         }
 
-        let state = freshState();
-        let saveMessage = "Progress will save after your next action.";
-
-        try {
-            const saved = localStorage.getItem(storageKey);
-
-            if (saved !== null) {
-                const parsed = JSON.parse(saved);
-
-                if (parsed === null || typeof parsed !== "object") {
-                    throw new Error("Invalid saved progress");
-                }
-
-                const validStep =
-                    Number.isInteger(parsed.step) &&
-                    parsed.step >= 0 &&
-                    parsed.step <= 4;
-
-                const validSelection =
-                    parsed.selected === null ||
-                    (
-                        typeof parsed.selected === "string" &&
-                        Object.prototype.hasOwnProperty.call(
-                            devices, parsed.selected
-                        )
-                    );
-
-                const validTimeline =
-                    Array.isArray(parsed.timeline) &&
-                    parsed.timeline.length === parsed.step + 1 &&
-                    parsed.timeline.every(function(entry) {
-                        return typeof entry === "string";
-                    });
-
-                if (!validStep || !validSelection || !validTimeline) {
-                    throw new Error("Invalid saved progress");
-                }
-
-                state = {
-                    step: parsed.step,
-                    selected: parsed.selected,
-                    timeline: parsed.timeline
-                };
-
-                saveMessage = "Saved progress restored.";
-            }
-        } catch (error) {
-            saveMessage =
-                "Saved progress could not be loaded. Starting a fresh lab.";
+        function freshNetwork() {
+            return {
+                checkedIP: false,
+                checkedPort: false,
+                checkedPing: false,
+                fixed: false,
+                resolved: false,
+                output: "Choose an inspection to begin your investigation.",
+                timeline: ["Alert opened: SRV-03 cannot reach the lab network."]
+            };
         }
 
-        function saveProgress() {
+        function validTimeline(value) {
+            return Array.isArray(value) &&
+                value.length > 0 &&
+                value.every(function(entry) {
+                    return typeof entry === "string";
+                });
+        }
+
+        function validDisk(value) {
+            return value &&
+                Number.isInteger(value.step) &&
+                value.step >= 0 && value.step <= 4 &&
+                (
+                    value.selected === null ||
+                    (
+                        typeof value.selected === "string" &&
+                        Object.prototype.hasOwnProperty.call(
+                            devices, value.selected
+                        )
+                    )
+                ) &&
+                validTimeline(value.timeline) &&
+                value.timeline.length === value.step + 1;
+        }
+
+        function validNetwork(value) {
+            if (!value || typeof value.output !== "string" ||
+                !validTimeline(value.timeline)) return false;
+
+            const flags = [
+                "checkedIP", "checkedPort", "checkedPing",
+                "fixed", "resolved"
+            ];
+
+            if (!flags.every(function(key) {
+                return typeof value[key] === "boolean";
+            })) return false;
+
+            const evidence =
+                value.checkedIP && value.checkedPort && value.checkedPing;
+
+            return (!value.fixed || evidence) &&
+                (!value.resolved || value.fixed);
+        }
+
+        function loadState(key, fallback, validate) {
             try {
-                localStorage.setItem(storageKey, JSON.stringify(state));
+                const raw = localStorage.getItem(key);
+                if (raw === null) return fallback();
+
+                const value = JSON.parse(raw);
+                if (!validate(value)) throw new Error("Invalid saved data");
+
+                saveMessage = "Saved progress restored.";
+                return value;
+            } catch (error) {
+                saveMessage =
+                    "Some saved progress could not load. That lab was reset.";
+                return fallback();
+            }
+        }
+
+        let disk = loadState(diskKey, freshDisk, validDisk);
+        let network = loadState(networkKey, freshNetwork, validNetwork);
+
+        function save() {
+            try {
+                localStorage.setItem(diskKey, JSON.stringify(disk));
+                localStorage.setItem(networkKey, JSON.stringify(network));
                 saveMessage = "Progress saved in this browser.";
             } catch (error) {
                 saveMessage =
-                    "Browser storage is unavailable. Progress will last " +
-                    "only while this page stays open.";
+                    "Browser storage unavailable. Keep this page open " +
+                    "to retain the current session.";
             }
         }
 
-        function databaseStatus() {
-            return state.step === 4 ? "Healthy" : "Warning";
+        function logEvent(timeline, message) {
+            timeline.push(new Date().toLocaleString() + " — " + message);
+        }
+
+        function deviceStatus(id) {
+            if (id === "server02") {
+                return disk.step === 4 ? "Healthy" : "Warning";
+            }
+            if (id === "server03") {
+                if (network.resolved) return "Healthy";
+                return network.fixed ? "Verification pending" : "Network outage";
+            }
+            return "Healthy";
         }
 
         function deviceNotes(id) {
-            if (id !== "server02") return devices[id].notes;
-            if (state.step === 4) {
-                return "Disk usage verified at 62% after simulated cleanup.";
+            if (id === "server02") {
+                if (disk.step === 4) return "Disk usage verified at 62%.";
+                if (disk.step === 3) return "Cleanup complete; verification pending.";
+                return "Simulated disk usage alert: 92%.";
             }
-            if (state.step === 3) {
-                return "Cleanup completed. Recovery verification pending.";
+            if (id === "server03") {
+                if (network.resolved) {
+                    return "Gateway and web-server connectivity verified.";
+                }
+                if (network.fixed) {
+                    return "Port configuration corrected; verify recovery.";
+                }
+                return "Cannot reach the gateway or other lab servers.";
             }
-            return "Simulated alert: disk usage has reached 92%.";
+            return devices[id].notes;
         }
 
         function renderRack() {
@@ -412,18 +476,24 @@
                 const button = document.createElement("button");
                 button.className = "device";
                 button.setAttribute(
-                    "aria-pressed", String(state.selected === id)
+                    "aria-pressed", String(disk.selected === id)
                 );
 
-                const warning = id === "server02" && state.step !== 4;
+                const status = deviceStatus(id);
                 const light = document.createElement("span");
-                light.className = warning ? "light warning" : "light";
+                light.className = "light";
+
+                if (status === "Network outage") {
+                    light.classList.add("down");
+                } else if (status !== "Healthy") {
+                    light.classList.add("warning");
+                }
                 light.setAttribute("aria-hidden", "true");
 
                 const label = document.createElement("span");
                 label.textContent = device.name + " · " + device.role;
-                if (id === "server02") {
-                    label.textContent += " · " + databaseStatus();
+                if (id === "server02" || id === "server03") {
+                    label.textContent += " · " + status;
                 }
 
                 const unit = document.createElement("span");
@@ -432,162 +502,346 @@
 
                 button.append(light, label, unit);
                 button.addEventListener("click", function() {
-                    state.selected = id;
-                    saveProgress();
+                    disk.selected = id;
+                    save();
                     render();
                 });
                 rack.append(button);
             });
-        }
 
-        function renderDetails() {
-            const device = state.selected === null
-                ? null : devices[state.selected];
-
+            const device = devices[disk.selected];
             document.getElementById("deviceHint").hidden = Boolean(device);
             document.getElementById("details").hidden = !device;
             document.getElementById("deviceName").textContent =
                 device ? device.name : "Device Details";
 
-            if (!device) return;
+            if (device) {
+                document.getElementById("deviceRole").textContent = device.role;
+                document.getElementById("deviceLocation").textContent =
+                    "Rack A01 · " + device.unit;
+                document.getElementById("deviceIP").textContent = device.ip;
+                document.getElementById("deviceStatus").textContent =
+                    deviceStatus(disk.selected);
+                document.getElementById("deviceNotes").textContent =
+                    deviceNotes(disk.selected);
+            }
+        }
 
-            document.getElementById("deviceRole").textContent = device.role;
-            document.getElementById("deviceLocation").textContent =
-                "Rack A01 · " + device.unit;
-            document.getElementById("deviceIP").textContent = device.ip;
-            document.getElementById("deviceStatus").textContent =
-                state.selected === "server02" ? databaseStatus() : "Healthy";
-            document.getElementById("deviceNotes").textContent =
-                deviceNotes(state.selected);
+        function renderTimeline(id, entries) {
+            const list = document.getElementById(id);
+            list.replaceChildren();
+            entries.forEach(function(message) {
+                const item = document.createElement("li");
+                item.textContent = message;
+                list.append(item);
+            });
         }
 
         function render() {
             renderRack();
-            renderDetails();
+            document.getElementById("saveStatus").textContent = saveMessage;
 
-            const stage = stages[state.step];
-            const status = document.getElementById("incidentState");
-            status.textContent = stage.status;
-            status.style.color =
-                state.step === 4 ? "#34d399" : "#fbbf24";
+            const diskStatus = document.getElementById("diskStatus");
+            diskStatus.textContent = diskStages[disk.step].status;
+            diskStatus.style.color =
+                disk.step === 4 ? "#34d399" : "#fbbf24";
 
-            document.getElementById("commandOutput").textContent =
-                stage.output;
-            document.getElementById("saveStatus").textContent =
-                saveMessage;
+            document.getElementById("diskOutput").textContent =
+                diskStages[disk.step].output;
 
-            document.querySelectorAll("[data-step]").forEach(
+            document.querySelectorAll("[data-disk-step]").forEach(
                 function(button) {
                     button.disabled =
-                        Number(button.dataset.step) !== state.step;
+                        Number(button.dataset.diskStep) !== disk.step;
                 }
             );
 
-            document.getElementById("downloadReport").disabled =
-                state.step !== 4;
+            document.getElementById("diskReport").disabled = disk.step !== 4;
+            renderTimeline("diskTimeline", disk.timeline);
 
-            const timeline = document.getElementById("timeline");
-            timeline.replaceChildren();
-            state.timeline.forEach(function(message) {
-                const entry = document.createElement("li");
-                entry.textContent = message;
-                timeline.append(entry);
+            const netStatus = document.getElementById("networkStatus");
+            netStatus.textContent = network.resolved
+                ? "Resolved · Network recovery verified"
+                : network.fixed
+                    ? "Verification required · Port configuration corrected"
+                    : "Open · SRV-03 network outage";
+
+            netStatus.style.color =
+                network.resolved ? "#34d399" : "#fbbf24";
+
+            document.getElementById("networkOutput").textContent =
+                network.output;
+
+            document.querySelectorAll("[data-net]").forEach(function(button) {
+                button.disabled = network.resolved;
             });
+            document.getElementById("networkVerify").disabled =
+                network.resolved;
+            document.getElementById("networkReport").disabled =
+                !network.resolved;
+
+            renderTimeline("networkTimeline", network.timeline);
         }
 
-        document.querySelectorAll("[data-step]").forEach(
+        document.querySelectorAll("[data-disk-step]").forEach(
             function(button) {
                 button.addEventListener("click", function() {
-                    const expectedStep = Number(button.dataset.step);
-                    if (state.step !== expectedStep) return;
-
-                    state.timeline.push(
-                        new Date().toLocaleTimeString() + " — " +
-                        timelineMessages[state.step]
-                    );
-                    state.step += 1;
-                    state.selected = "server02";
-                    saveProgress();
+                    if (Number(button.dataset.diskStep) !== disk.step) return;
+                    logEvent(disk.timeline, diskEvents[disk.step]);
+                    disk.step++;
+                    disk.selected = "server02";
+                    save();
                     render();
                 });
             }
         );
 
-        document.getElementById("downloadReport").addEventListener(
-            "click",
-            function() {
-                if (state.step !== 4) return;
+        function investigate(action) {
+            if (network.resolved) return;
+            disk.selected = "server03";
 
-                const report = [
-                    "RACKOPS · INCIDENT REPORT",
-                    "SIMULATED TRAINING LAB",
+            if (action === "ip") {
+                network.checkedIP = true;
+                network.output = [
+                    "SIMULATED OUTPUT · SRV-03 IP configuration",
                     "",
-                    "Incident: INC-001 · High Disk Usage",
-                    "Status: Resolved",
-                    "Device: SRV-02 · Database Server",
-                    "Location: Rack A01 · U06–07",
-                    "Lab IP: 192.0.2.22",
-                    "Report generated: " + new Date().toISOString(),
+                    "Address: 192.0.2.23/24",
+                    "Gateway: 192.0.2.1",
+                    "Interface: up",
                     "",
-                    "INITIAL FINDING",
-                    "/var usage: 92 GB of 100 GB (92%).",
-                    "Warning threshold: 90%.",
-                    "",
-                    "IDENTIFIED CAUSE",
-                    "Expired rotated database logs occupied 30 GB.",
-                    "",
-                    "CORRECTIVE ACTION",
-                    "Removed 30 GB of expired rotated logs in the simulation.",
-                    "Preserved the active log and database files.",
-                    "",
-                    "VERIFICATION",
-                    "/var usage: 62 GB of 100 GB (62%).",
-                    "Usage fell below the warning threshold.",
-                    "Simulated device status changed to Healthy.",
-                    "",
-                    "FOLLOW-UP",
-                    "Configure and test log retention to prevent recurrence.",
-                    "",
-                    "INCIDENT TIMELINE",
-                    ...state.timeline,
-                    "",
-                    "All findings and actions are simulated.",
-                    "No live device commands or real file deletions occurred."
+                    "These settings match the expected configuration."
                 ].join("\n");
-
-                const file = new Blob(
-                    [report], { type: "text/plain;charset=utf-8" }
-                );
-                const url = URL.createObjectURL(file);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = "RackOps-INC-001-report.txt";
-                document.body.append(link);
-                link.click();
-                link.remove();
-
-                setTimeout(function() {
-                    URL.revokeObjectURL(url);
-                }, 10000);
+                logEvent(network.timeline, "Inspected IP settings; they match the plan.");
             }
-        );
 
-        document.getElementById("resetIncident").addEventListener(
+            if (action === "port") {
+                network.checkedPort = true;
+                network.output = [
+                    "SIMULATED OUTPUT · SW-01 port Gi0/3",
+                    "",
+                    "Administrative state: enabled",
+                    "Physical link: up",
+                    "Mode: access",
+                    "Current access VLAN: " + (network.fixed ? "20" : "30"),
+                    "Expected access VLAN: 20",
+                    "",
+                    network.fixed
+                        ? "VLAN configuration now matches the plan."
+                        : "Evidence: port VLAN does not match the plan."
+                ].join("\n");
+                logEvent(
+                    network.timeline,
+                    "Inspected Gi0/3: link up, access VLAN " +
+                    (network.fixed ? "20." : "30; expected VLAN 20.")
+                );
+            }
+
+            if (action === "ping") {
+                network.checkedPing = true;
+                network.output = network.fixed
+                    ? [
+                        "SIMULATED TEST · SRV-03 to gateway 192.0.2.1",
+                        "",
+                        "4 requests sent, 4 replies received.",
+                        "Gateway responds.",
+                        "Use Verify Network Recovery to complete both tests."
+                    ].join("\n")
+                    : [
+                        "SIMULATED TEST · SRV-03 to gateway 192.0.2.1",
+                        "",
+                        "4 requests sent, 0 replies received.",
+                        "Connectivity test failed.",
+                        "",
+                        "This result alone does not identify the cause.",
+                        "Compare IP settings and switch-port configuration."
+                    ].join("\n");
+                logEvent(
+                    network.timeline,
+                    network.fixed ? "Gateway test passed." : "Gateway test failed."
+                );
+            }
+
+            if (action === "renew") {
+                network.output = [
+                    "SIMULATED ACTION · Renew IP configuration",
+                    "",
+                    "SRV-03 uses a static address in this lab.",
+                    "No DHCP lease exists to renew.",
+                    "No configuration changed.",
+                    "",
+                    "Compare the existing settings with the expected plan."
+                ].join("\n");
+                logEvent(network.timeline, "Attempted IP renewal; static settings unchanged.");
+            }
+
+            if (action === "enable") {
+                network.output = [
+                    "SIMULATED ACTION · Enable switch port",
+                    "",
+                    "Gi0/3 is already administratively enabled.",
+                    "The physical link is already up.",
+                    "No configuration changed.",
+                    "",
+                    "Inspect the port's VLAN assignment."
+                ].join("\n");
+                logEvent(network.timeline, "Port already enabled; no change made.");
+            }
+
+            if (action === "vlan") {
+                const evidence =
+                    network.checkedIP && network.checkedPort && network.checkedPing;
+
+                if (!evidence) {
+                    network.output = [
+                        "More evidence required before this simulated change.",
+                        "",
+                        "Inspect IP configuration, inspect the switch port,",
+                        "and test gateway connectivity first.",
+                        "Compare all three results with the expected plan."
+                    ].join("\n");
+                    logEvent(network.timeline, "VLAN change deferred pending evidence.");
+                } else if (network.fixed) {
+                    network.output =
+                        "Access VLAN is already 20. Verify network recovery.";
+                } else {
+                    network.fixed = true;
+                    network.output = [
+                        "SIMULATED APPROVED CHANGE · SW-01 Gi0/3",
+                        "",
+                        "Access VLAN changed from 30 to 20.",
+                        "IP address and gateway left unchanged.",
+                        "",
+                        "The expected plan places SRV-03 and its gateway",
+                        "in VLAN 20. Verify recovery before resolving."
+                    ].join("\n");
+                    logEvent(network.timeline, "Corrected Gi0/3 access VLAN from 30 to 20.");
+                }
+            }
+
+            save();
+            render();
+        }
+
+        document.querySelectorAll("[data-net]").forEach(function(button) {
+            button.addEventListener("click", function() {
+                investigate(button.dataset.net);
+            });
+        });
+
+        document.getElementById("networkVerify").addEventListener(
             "click",
             function() {
-                state = freshState();
-                try {
-                    localStorage.removeItem(storageKey);
-                    saveMessage =
-                        "Lab reset. Previous saved progress cleared.";
-                } catch (error) {
-                    saveMessage =
-                        "Lab reset for this page. Browser storage " +
-                        "could not be cleared.";
+                if (network.resolved) return;
+                disk.selected = "server03";
+
+                if (!network.fixed) {
+                    network.output = [
+                        "SIMULATED RECOVERY CHECK",
+                        "",
+                        "Gateway 192.0.2.1: FAIL",
+                        "Web server 192.0.2.21: FAIL",
+                        "",
+                        "Recovery is not verified. Incident remains open.",
+                        "Gather evidence and correct the configuration."
+                    ].join("\n");
+                    logEvent(network.timeline, "Recovery verification failed; incident remains open.");
+                } else {
+                    network.resolved = true;
+                    network.output = [
+                        "SIMULATED RECOVERY CHECK",
+                        "",
+                        "Gateway 192.0.2.1: PASS",
+                        "Web server 192.0.2.21: PASS",
+                        "Gi0/3 access VLAN: 20",
+                        "",
+                        "Recovery verified. SRV-03 is Healthy.",
+                        "Cause: incorrect switch access VLAN.",
+                        "Follow-up: audit port assignments against the plan."
+                    ].join("\n");
+                    logEvent(network.timeline, "Verified gateway and web-server connectivity; resolved INC-002.");
                 }
+
+                save();
                 render();
             }
         );
+
+        function downloadReport(filename, lines) {
+            const text = [
+                "RACKOPS · SIMULATED TRAINING REPORT",
+                "Generated: " + new Date().toISOString(),
+                "",
+                ...lines,
+                "",
+                "All findings and actions are simulated.",
+                "No live device commands or real file deletions occurred."
+            ].join("\n");
+
+            const blob = new Blob([text], {type: "text/plain;charset=utf-8"});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            document.body.append(link);
+            link.click();
+            link.remove();
+            setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
+        }
+
+        document.getElementById("diskReport").addEventListener("click", function() {
+            if (disk.step !== 4) return;
+            downloadReport("RackOps-INC-001-report.txt", [
+                "Incident: INC-001 · High Disk Usage",
+                "Status: Resolved",
+                "Device: SRV-02 · Database Server",
+                "Location: Rack A01 · U06–07",
+                "Lab IP: 192.0.2.22",
+                "",
+                "Finding: /var was 92% full; warning threshold 90%.",
+                "Cause: 30 GB of expired rotated database logs.",
+                "Action: removed expired logs; preserved active logs and data.",
+                "Verification: disk usage 62%; device Healthy.",
+                "Follow-up: configure and test log retention.",
+                "",
+                "TIMELINE",
+                ...disk.timeline
+            ]);
+        });
+
+        document.getElementById("networkReport").addEventListener("click", function() {
+            if (!network.resolved) return;
+            downloadReport("RackOps-INC-002-report.txt", [
+                "Incident: INC-002 · Network Outage",
+                "Status: Resolved",
+                "Device: SRV-03 · Application Server",
+                "Location: Rack A01 · U04–05",
+                "Lab IP: 192.0.2.23/24",
+                "",
+                "Finding: gateway connectivity failed.",
+                "Evidence: correct static IP; switch port enabled and link up.",
+                "Cause: Gi0/3 access VLAN 30; expected VLAN 20.",
+                "Action: changed access VLAN to 20.",
+                "Verification: gateway and web-server connectivity passed.",
+                "Follow-up: audit port assignments against the plan.",
+                "",
+                "TIMELINE",
+                ...network.timeline
+            ]);
+        });
+
+        document.getElementById("diskReset").addEventListener("click", function() {
+            const selection = disk.selected;
+            disk = freshDisk();
+            disk.selected = selection;
+            save();
+            render();
+        });
+
+        document.getElementById("networkReset").addEventListener("click", function() {
+            network = freshNetwork();
+            save();
+            render();
+        });
 
         render();
     </script>
