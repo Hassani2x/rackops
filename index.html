@@ -41,6 +41,31 @@
             border: 1px solid #263247;
             border-radius: 14px;
         }
+        .wide { grid-column: 1 / -1; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .stat {
+            padding: 20px;
+            background: #080d18;
+            border: 1px solid #334155;
+            border-radius: 10px;
+        }
+        .stat dt {
+            margin: 0;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+        .stat dd {
+            margin: 12px 0 0;
+            font-size: 36px;
+            font-weight: bold;
+        }
+        .green { color: #34d399; }
+        .amber { color: #fbbf24; }
+        .cyan { color: #67e8f9; }
         .rack {
             padding: 14px;
             background: #080d18;
@@ -89,7 +114,6 @@
         }
         dt { margin-top: 20px; color: #94a3b8; font-size: 14px; }
         dd { margin: 6px 0 0; line-height: 1.5; }
-        .wide { grid-column: 1 / -1; }
         .actions {
             display: flex;
             flex-wrap: wrap;
@@ -121,6 +145,7 @@
         .status { font-weight: bold; color: #fbbf24; }
         @media (max-width: 700px) {
             main { grid-template-columns: 1fr; }
+            .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
     </style>
 </head>
@@ -132,6 +157,33 @@
     </header>
 
     <main>
+        <section class="panel wide">
+            <h2>Operations Dashboard</h2>
+            <p class="muted">
+                Five simulated devices and two incident labs.
+                Devices remain in attention until recovery is verified.
+            </p>
+            <dl class="stats">
+                <div class="stat">
+                    <dt>Healthy devices</dt>
+                    <dd id="healthyCount" class="green">—</dd>
+                </div>
+                <div class="stat">
+                    <dt>Devices needing attention</dt>
+                    <dd id="attentionCount" class="amber">—</dd>
+                </div>
+                <div class="stat">
+                    <dt>Open incidents</dt>
+                    <dd id="openCount" class="amber">—</dd>
+                </div>
+                <div class="stat">
+                    <dt>Resolved incidents</dt>
+                    <dd id="resolvedCount" class="cyan">—</dd>
+                </div>
+            </dl>
+            <p id="dashboardSummary" class="muted" role="status"></p>
+        </section>
+
         <section class="panel">
             <h2>Rack A01</h2>
             <p class="muted">
@@ -168,7 +220,6 @@
                 and verify recovery.
             </p>
             <p id="diskStatus" class="status" role="status"></p>
-
             <div class="actions">
                 <button class="action" data-disk-step="0">
                     1. Inspect Disk Usage
@@ -189,7 +240,6 @@
                     Reset Disk Lab
                 </button>
             </div>
-
             <pre id="diskOutput" role="status"></pre>
             <h3>Disk Incident Timeline</h3>
             <ol id="diskTimeline"></ol>
@@ -211,9 +261,15 @@
 
             <h3>Gather Evidence</h3>
             <div class="actions">
-                <button class="action" data-net="ip">Inspect IP Configuration</button>
-                <button class="action" data-net="port">Inspect Switch Port</button>
-                <button class="action" data-net="ping">Test Gateway Connectivity</button>
+                <button class="action" data-net="ip">
+                    Inspect IP Configuration
+                </button>
+                <button class="action" data-net="port">
+                    Inspect Switch Port
+                </button>
+                <button class="action" data-net="ping">
+                    Test Gateway Connectivity
+                </button>
             </div>
 
             <h3>Choose a Corrective Action</h3>
@@ -468,6 +524,26 @@
             return devices[id].notes;
         }
 
+        function renderDashboard() {
+            const total = Object.keys(devices).length;
+            const healthy = Object.keys(devices).filter(function(id) {
+                return deviceStatus(id) === "Healthy";
+            }).length;
+
+            const resolved =
+                Number(disk.step === 4) + Number(network.resolved);
+            const open = 2 - resolved;
+
+            document.getElementById("healthyCount").textContent = healthy;
+            document.getElementById("attentionCount").textContent =
+                total - healthy;
+            document.getElementById("openCount").textContent = open;
+            document.getElementById("resolvedCount").textContent = resolved;
+            document.getElementById("dashboardSummary").textContent =
+                healthy + " of " + total + " devices healthy. " +
+                resolved + " of 2 incidents resolved.";
+        }
+
         function renderRack() {
             const rack = document.getElementById("rack");
             rack.replaceChildren();
@@ -538,6 +614,7 @@
         }
 
         function render() {
+            renderDashboard();
             renderRack();
             document.getElementById("saveStatus").textContent = saveMessage;
 
@@ -575,11 +652,11 @@
             document.querySelectorAll("[data-net]").forEach(function(button) {
                 button.disabled = network.resolved;
             });
+
             document.getElementById("networkVerify").disabled =
                 network.resolved;
             document.getElementById("networkReport").disabled =
                 !network.resolved;
-
             renderTimeline("networkTimeline", network.timeline);
         }
 
@@ -669,7 +746,7 @@
                     "No DHCP lease exists to renew.",
                     "No configuration changed.",
                     "",
-                    "Compare the existing settings with the expected plan."
+                    "Compare the settings with the expected plan."
                 ].join("\n");
                 logEvent(network.timeline, "Attempted IP renewal; static settings unchanged.");
             }
@@ -777,7 +854,9 @@
                 "No live device commands or real file deletions occurred."
             ].join("\n");
 
-            const blob = new Blob([text], {type: "text/plain;charset=utf-8"});
+            const blob = new Blob([text], {
+                type: "text/plain;charset=utf-8"
+            });
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
@@ -785,7 +864,10 @@
             document.body.append(link);
             link.click();
             link.remove();
-            setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
+
+            setTimeout(function() {
+                URL.revokeObjectURL(url);
+            }, 10000);
         }
 
         document.getElementById("diskReport").addEventListener("click", function() {
