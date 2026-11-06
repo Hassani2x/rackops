@@ -27,17 +27,15 @@ def main():
         return 0 if result.wasSuccessful() else 1
 
     from server import DATABASE
-    from power_app import initialize_power
-    from dashboard_app import DashboardHandler
-    from reports_app import make_reports_handler
+    from accounts_app import Accounts, make_accounts_handler
 
-    page = PROJECT / "static" / "reports.html"
+    page = PROJECT / "static" / "accounts.html"
     if not page.is_file():
-        print("Missing static/reports.html. Complete the reports setup first.")
+        print("Missing static/accounts.html. Complete the accounts setup first.")
         return 1
 
-    initialize_power(DATABASE)
-    handler = make_reports_handler(DashboardHandler, DATABASE)
+    accounts = Accounts(PROJECT / "data", DATABASE)
+    handler = make_accounts_handler(accounts, page)
 
     try:
         server = ThreadingHTTPServer(("127.0.0.1", 8001), handler)

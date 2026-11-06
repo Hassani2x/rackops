@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RackOps Incident Workspace</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b1120;color:#e2e8f0;font:16px/1.6 system-ui,sans-serif}
+header,main{max-width:1180px;margin:auto;padding:28px}
+h1{color:#67e8f9;margin:0}
+p,.muted{color:#a6b5cb}
+main{display:grid;grid-template-columns:300px 1fr;gap:24px}
+.panel{padding:24px;background:#111b2e;border:1px solid #334155;border-radius:14px;min-width:0}
+button,textarea{font:inherit}
+button{cursor:pointer;border:1px solid #475569;border-radius:8px;padding:12px 16px;background:#1e293b;color:#e2e8f0}
+nav button{display:block;width:100%;text-align:left;margin-bottom:12px}
+button[aria-pressed=true]{border-color:#67e8f9;background:#163448}
+button:focus-visible,textarea:focus-visible{outline:3px solid #67e8f9;outline-offset:3px}
+button:disabled{opacity:.5;cursor:wait}
+.primary{background:#67e8f9;color:#0b1120;font-weight:bold}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+textarea{display:block;width:100%;min-height:110px;background:#080d18;color:#e2e8f0;border:1px solid #64748b;border-radius:8px;padding:12px;margin:8px 0 14px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#080d18;padding:18px;border:1px solid #334155;border-radius:10px}
+li{margin:16px 0;overflow-wrap:anywhere;white-space:pre-wrap}
+time{display:block;color:#94a3b8;font-size:13px}
+#message{min-height:26px;color:#67e8f9}
+#status{font-weight:bold;color:#fbbf24}
+.device{border-bottom:1px solid #334155;padding:9px 0}
+[hidden]{display:none!important}
+@media(max-width:780px){main{grid-template-columns:1fr;padding:16px}}
+
+.dashboard{grid-column:1/-1}
+.dashboard-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.dashboard-card{background:#080d18;border:1px solid #334155;border-radius:10px;padding:20px}
+.dashboard-card h3{margin:0;color:#a6b5cb;font-size:16px;font-weight:normal}
+.dashboard-number{font-size:42px;font-weight:bold;margin-top:8px}
+#countOpen{color:#fb7185}
+#countAwaiting{color:#fbbf24}
+#countResolved{color:#34d399}
+@media(max-width:600px){.dashboard-grid{grid-template-columns:1fr}}
+
+</style>
+</head>
+<body>
+<header>
+<h1>RackOps</h1>
+<p>Incident workspace · Python + SQLite</p>
+<p>Simulation — no live device connections.</p>
+</header>
+
+<section id="accountLogin" class="panel"
+style="max-width:600px;margin:24px auto;padding:24px">
+<h2>Sign in to RackOps</h2>
+<p>Each account has its own labs, notes, and reports.</p>
+<p>The first account created on this computer receives the existing
+local progress. Later accounts start with fresh labs.</p>
+<form id="accountForm">
+<label for="accountName">Username</label>
+<input id="accountName" autocomplete="username" required
+minlength="3" maxlength="32" pattern="[A-Za-z0-9_]{3,32}"
+style="display:block;width:100%;padding:12px;margin:8px 0 16px">
+<label for="accountPassword">Password (12–128 characters)</label>
+<input id="accountPassword" type="password"
+autocomplete="current-password" required minlength="12" maxlength="128"
+style="display:block;width:100%;padding:12px;margin:8px 0 16px">
+<div class="actions">
+<button class="primary" type="submit" value="login">Sign in</button>
+<button type="submit" value="register">Create account</button>
+</div>
+</form>
+<p id="accountError" role="status"></p>
+</section>
+<div id="accountBar" hidden
+style="max-width:1180px;margin:auto;padding:0 28px">
+<span id="accountWho"></span>
+<button id="accountLogout" type="button">Sign out</button>
+</div>
+
+<main hidden>
+
+<section class="panel dashboard" aria-labelledby="dashboardTitle">
+<h2 id="dashboardTitle">Operations Dashboard</h2>
+<p id="dashboardSummary">Loading saved incident counts...</p>
+<div class="dashboard-grid">
+<div class="dashboard-card">
+<h3>Open — action needed</h3>
+<div class="dashboard-number" id="countOpen">—</div>
+</div>
+<div class="dashboard-card">
+<h3>Awaiting verification</h3>
+<div class="dashboard-number" id="countAwaiting">—</div>
+</div>
+<div class="dashboard-card">
+<h3>Resolved</h3>
+<div class="dashboard-number" id="countResolved">—</div>
+</div>
+</div>
+<p class="muted">Each incident appears in one category.
+Counts update after inspections, corrective actions, verification, and resets.</p>
+</section>
+
+<aside class="panel">
+<h2>Incidents</h2>
+<nav id="incidents" aria-label="Select an incident"></nav>
+<h2>Inventory</h2>
+<div id="devices"></div>
+</aside>
+<section class="panel">
+<h2 id="title">Loading...</h2>
+<p id="description"></p>
+<p id="status"></p>
+
+<div class="actions">
+<button type="button" class="primary" id="reportDownload" disabled>
+Download Incident Report
+</button>
+</div>
+<p class="muted">Reports become available after recovery is verified.
+They include the saved incident timeline and your investigation notes.</p>
+
+
+
+
+<section id="power" hidden>
+<h3>Power Redundancy Troubleshooting</h3>
+<p>SRV-01 remains online on PSU B. Investigate the lost redundancy
+while preserving the working power path.</p>
+<p class="muted">All actions are simulated. Real equipment work requires
+the approved procedure and qualified personnel.</p>
+<h4>Gather Evidence</h4>
+<div class="actions">
+<button type="button" data-power-action="psu">Inspect Power Supplies</button>
+<button type="button" data-power-action="feeds">Inspect Power Feeds</button>
+<button type="button" data-power-action="events">Inspect Event Log</button>
+</div>
+<p id="powerEvidence" class="muted"></p>
+<h4>Choose a Corrective Action</h4>
+<div class="actions">
+<button type="button" data-power-action="reboot">Reboot Server</button>
+<button type="button" data-power-action="disconnect">Disconnect Feed B</button>
+<button type="button" class="primary" data-power-action="replace">Replace PSU A</button>
+</div>
+<div class="actions">
+<button type="button" class="primary" data-power-action="verify">Verify Power Recovery</button>
+<button type="button" data-power-action="reset">Reset Power Lab</button>
+</div>
+<pre id="powerOutput" role="status"></pre>
+</section>
+
+<section id="disk" hidden>
+<h3>Disk Troubleshooting</h3>
+<p>Investigate the high disk usage on SRV-02.
+The recovery target is below 85%, with the database healthy.</p>
+<h4>Gather Evidence</h4>
+<div class="actions">
+<button type="button" data-disk-action="filesystem">Inspect Filesystem</button>
+<button type="button" data-disk-action="files">Inspect Files</button>
+<button type="button" data-disk-action="service">Inspect Database Service</button>
+</div>
+<p id="diskEvidence" class="muted"></p>
+<h4>Choose a Corrective Action</h4>
+<div class="actions">
+<button type="button" data-disk-action="restart">Restart Database Service</button>
+<button type="button" data-disk-action="delete">Delete Database Files</button>
+<button type="button" class="primary" data-disk-action="cleanup">Clean Expired Rotated Logs</button>
+</div>
+<div class="actions">
+<button type="button" class="primary" data-disk-action="verify">Verify Disk Recovery</button>
+<button type="button" data-disk-action="reset">Reset Disk Lab</button>
+</div>
+<pre id="diskOutput" role="status"></pre>
+</section>
+
+<section id="network" hidden>
+<h3>Network Troubleshooting</h3>
+<p>Expected plan: SRV-03 at 192.0.2.23/24, gateway 192.0.2.1,
+switch SW-01 port Gi0/3, access VLAN 20.</p>
+<h4>Gather Evidence</h4>
+<div class="actions">
+<button type="button" data-action="ip">Inspect IP Configuration</button>
+<button type="button" data-action="port">Inspect Switch Port</button>
+<button type="button" data-action="ping">Test Connectivity</button>
+</div>
+<p id="evidence" class="muted"></p>
+<h4>Choose a Corrective Action</h4>
+<div class="actions">
+<button type="button" data-action="renew">Renew IP Configuration</button>
+<button type="button" data-action="enable">Enable Switch Port</button>
+<button type="button" class="primary" data-action="vlan">Set Access VLAN to 20</button>
+</div>
+<div class="actions">
+<button type="button" class="primary" data-action="verify">Verify Network Recovery</button>
+<button type="button" data-action="reset">Reset Network Lab</button>
+</div>
+<pre id="output" role="status"></pre>
+</section>
+
+<p id="otherInfo">This incident currently supports notes.
+Its troubleshooting actions will be connected in a later milestone.</p>
+
+<form id="form">
+<label for="note">Investigation note</label>
+<textarea id="note" maxlength="2000" required
+placeholder="Record your observations and reasoning."></textarea>
+<button id="save" class="primary" disabled>Save note</button>
+</form>
+<p id="message" role="status"></p>
+<h3>Incident Timeline</h3>
+<ol id="events"></ol>
+</section>
+</main>
+<script>
+let selected=null;
+let reportReady=false;
+let busy=false;
+let networkResolved=false;
+let diskResolved=false;
+let powerResolved=false;
+const el=id=>document.getElementById(id);
+
+async function api(path,options){
+  const response=await fetch(path,{
+    ...options,
+    headers:{"X-RackOps-Request":"1",...(options&&options.headers||{})}
+  });
+  if(response.status===401){
+    location.reload();
+    throw Error("Please sign in again");
+  }
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error||"Request failed");
+  return data;
+}
+
+function updateControls(){
+  document.querySelectorAll("nav button").forEach(button=>{
+    button.disabled=busy;
+    button.setAttribute("aria-pressed",String(button.dataset.id===selected));
+  });
+  el("save").disabled=busy||!selected;
+  el("reportDownload").disabled=busy||!reportReady;
+  document.querySelectorAll("[data-power-action]").forEach(button=>{
+    button.disabled=busy||(powerResolved&&button.dataset.powerAction!=="reset");
+  });
+  document.querySelectorAll("[data-disk-action]").forEach(button=>{
+    button.disabled=busy||(diskResolved&&button.dataset.diskAction!=="reset");
+  });
+  document.querySelectorAll("[data-action]").forEach(button=>{
+    button.disabled=busy||(networkResolved&&button.dataset.action!=="reset");
+  });
+}
+
+function showNetwork(state){
+  networkResolved=state.verified;
+  el("output").textContent=state.output;
+  const mark=value=>value?"done":"not checked";
+  el("evidence").textContent=
+    "IP: "+mark(state.ip_checked)+
+    " · Port: "+mark(state.port_checked)+
+    " · Connectivity: "+mark(state.ping_checked);
+}
+
+
+async function refreshDashboard(){
+  const counts=await api("/api/dashboard");
+  el("countOpen").textContent=counts.open;
+  el("countAwaiting").textContent=counts.awaiting;
+  el("countResolved").textContent=counts.resolved;
+  el("dashboardSummary").textContent=
+    counts.devices+" simulated devices · "+
+    counts.total+" incident labs · "+
+    counts.resolved+" resolved";
+}
+
+async function refresh(){
+  const id=selected;
+  await refreshDashboard();
+  const incident=await api("/api/incidents/"+encodeURIComponent(id));
+  reportReady=incident.status==="resolved";
+  el("title").textContent=incident.id+" · "+incident.title;
+  el("description").textContent=incident.device_id+" · "+incident.description;
+  el("status").textContent="Status: "+incident.status.replaceAll("_"," ");
+  el("status").style.color=incident.status==="resolved"?"#34d399":"#fbbf24";
+  const isNetwork=id==="INC-002";
+  el("network").hidden=!isNetwork;
+  el("otherInfo").hidden=true;
+  el("disk").hidden=id!=="INC-001";
+  el("power").hidden=id!=="INC-003";
+  el("events").replaceChildren();
+  for(const event of incident.events){
+    const li=document.createElement("li");
+    li.textContent=event.message;
+    const time=document.createElement("time");
+    time.textContent=new Date(event.created_at).toLocaleString();
+    li.append(time);
+    el("events").append(li);
+  }
+  if(isNetwork)showNetwork(await api("/api/network"));
+  if(id==="INC-001")showDisk(await api("/api/disk"));
+  if(id==="INC-003")showPower(await api("/api/power"));
+}
+
+async function selectIncident(id){
+  if(busy)return;
+  busy=true;
+  selected=id;
+  el("note").value="";
+  el("message").textContent="";
+  updateControls();
+  try{await refresh();}
+  catch(error){el("message").textContent=error.message;}
+  finally{busy=false;updateControls();}
+}
+
+document.querySelectorAll("[data-action]").forEach(button=>{
+  button.addEventListener("click",async()=>{
+    if(busy)return;
+    const action=button.dataset.action;
+    if(action==="reset"&&!confirm("Reset this simulated network incident? Notes and history will remain."))return;
+    busy=true;
+    el("message").textContent="";
+    updateControls();
+    try{
+      await api("/api/network/actions",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action})
+      });
+      await refresh();
+    }catch(error){el("message").textContent=error.message;}
+    finally{busy=false;updateControls();}
+  });
+});
+
+el("form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(busy)return;
+  busy=true;
+  updateControls();
+  try{
+    await api("/api/incidents/"+encodeURIComponent(selected)+"/notes",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({note:el("note").value})
+    });
+    el("note").value="";
+    await refresh();
+    el("message").textContent="Note saved to the database.";
+  }catch(error){el("message").textContent=error.message;}
+  finally{busy=false;updateControls();}
+});
+
+
+function showDisk(state){
+  diskResolved=state.verified;
+  el("diskOutput").textContent=state.output;
+  const mark=value=>value?"done":"not checked";
+  el("diskEvidence").textContent=
+    "Filesystem: "+mark(state.filesystem_checked)+
+    " · Files: "+mark(state.files_checked)+
+    " · Service: "+mark(state.service_checked);
+}
+
+document.querySelectorAll("[data-disk-action]").forEach(button=>{
+  button.addEventListener("click",async()=>{
+    if(busy)return;
+    const action=button.dataset.diskAction;
+    if(action==="reset"&&!confirm("Reset this simulated disk incident? Notes and history will remain."))return;
+    busy=true;
+    el("message").textContent="";
+    updateControls();
+    try{
+      await api("/api/disk/actions",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action})
+      });
+      await refresh();
+    }catch(error){el("message").textContent=error.message;}
+    finally{busy=false;updateControls();}
+  });
+});
+
+
+function showPower(state){
+  powerResolved=state.verified;
+  el("powerOutput").textContent=state.output;
+  const mark=value=>value?"done":"not checked";
+  el("powerEvidence").textContent=
+    "PSUs: "+mark(state.psu_checked)+
+    " · Feeds: "+mark(state.feeds_checked)+
+    " · Event log: "+mark(state.events_checked);
+}
+
+document.querySelectorAll("[data-power-action]").forEach(button=>{
+  button.addEventListener("click",async()=>{
+    if(busy)return;
+    const action=button.dataset.powerAction;
+    if(action==="reset"&&!confirm("Reset this simulated power incident? Notes and history will remain."))return;
+    busy=true;
+    el("message").textContent="";
+    updateControls();
+    try{
+      await api("/api/power/actions",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action})
+      });
+      await refresh();
+    }catch(error){el("message").textContent=error.message;}
+    finally{busy=false;updateControls();}
+  });
+});
+
+
+el("reportDownload").addEventListener("click",async()=>{
+  if(busy||!reportReady)return;
+  const id=selected;
+  busy=true;
+  updateControls();
+  el("message").textContent="";
+  try{
+    const response=await fetch(
+      "/api/incidents/"+encodeURIComponent(id)+"/report"
+    );
+    if(!response.ok){
+      const data=await response.json();
+      throw Error(data.error||"Could not download report");
+    }
+    const blob=await response.blob();
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement("a");
+    link.href=url;
+    link.download="RackOps-"+id+"-report.txt";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    el("message").textContent=
+      "Report downloaded. Check your browser downloads.";
+  }catch(error){
+    el("message").textContent=error.message;
+  }finally{
+    busy=false;
+    updateControls();
+  }
+});
+
+async function start(){
+  try{
+    const [incidents,devices]=await Promise.all([
+      api("/api/incidents"),api("/api/devices")
+    ]);
+    for(const item of incidents){
+      const button=document.createElement("button");
+      button.type="button";
+      button.dataset.id=item.id;
+      button.textContent=item.id+" · "+item.title;
+      button.addEventListener("click",()=>selectIncident(item.id));
+      el("incidents").append(button);
+    }
+    for(const item of devices){
+      const div=document.createElement("div");
+      div.className="device";
+      div.textContent=item.id+" · "+item.role+" · "+item.ip;
+      el("devices").append(div);
+    }
+    await selectIncident("INC-003");
+  }catch(error){el("message").textContent=error.message;}
+}
+
+el("accountForm").addEventListener("submit",async event=>{
+  event.preventDefault();
+  const mode=event.submitter&&event.submitter.value==="register"?
+    "register":"login";
+  const buttons=el("accountForm").querySelectorAll("button");
+  buttons.forEach(button=>button.disabled=true);
+  el("accountError").textContent="Please wait...";
+  try{
+    const response=await fetch("/api/auth/"+mode,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "X-RackOps-Request":"1"
+      },
+      body:JSON.stringify({
+        username:el("accountName").value,
+        password:el("accountPassword").value
+      })
+    });
+    const data=await response.json();
+    if(!response.ok)throw Error(data.error||"Could not sign in");
+    location.reload();
+  }catch(error){
+    el("accountError").textContent=error.message;
+  }finally{
+    buttons.forEach(button=>button.disabled=false);
+  }
+});
+
+el("accountLogout").addEventListener("click",async()=>{
+  try{
+    await api("/api/auth/logout",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:"{}"
+    });
+    location.reload();
+  }catch(error){
+    el("message").textContent=error.message;
+  }
+});
+
+async function accountStart(){
+  try{
+    const response=await fetch("/api/auth/me");
+    if(response.status===401)return;
+    const user=await response.json();
+    if(!response.ok)throw Error(user.error||"Could not check sign-in");
+    el("accountLogin").hidden=true;
+    el("accountBar").hidden=false;
+    el("accountWho").textContent="Signed in as "+user.username;
+    document.querySelector("main").hidden=false;
+    await start();
+  }catch(error){
+    el("accountError").textContent=error.message;
+  }
+}
+accountStart();
+
+</script>
+</body>
+</html>
