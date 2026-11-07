@@ -123,6 +123,38 @@ They include the saved incident timeline and your investigation notes.</p>
 
 
 
+
+<section id="boot" hidden>
+<h3>Server Boot Troubleshooting</h3>
+<p>Independent scenario: SRV-01 is in emergency mode
+after a filesystem configuration change.</p>
+<p class="muted">All console output and changes are simulated.
+No commands run on your Mac.</p>
+<h4>Gather Evidence</h4>
+<div class="actions">
+<button type="button" data-boot-action="console">Inspect Boot Console</button>
+<button type="button" data-boot-action="disks">Inspect Disk Inventory</button>
+<button type="button" data-boot-action="fstab">Inspect Filesystem Configuration</button>
+</div>
+<p id="bootEvidence" class="muted"></p>
+<h4>Choose a Corrective Action</h4>
+<label for="bootUuid">Archive filesystem UUID from the disk inventory</label>
+<input id="bootUuid" maxlength="36" spellcheck="false" autocomplete="off"
+style="display:block;width:100%;padding:12px;margin:8px 0 16px;background:#080d18;color:#e2e8f0;border:1px solid #64748b;border-radius:8px;font:inherit"
+placeholder="Copy the archive UUID from Inspect Disk Inventory">
+<div class="actions">
+<button type="button" class="primary" data-boot-action="correct">Correct Archive Mount UUID</button>
+<button type="button" data-boot-action="format">Format Archive Disk</button>
+<button type="button" data-boot-action="reinstall">Reinstall Operating System</button>
+</div>
+<div class="actions">
+<button type="button" class="primary" data-boot-action="restart">Perform Approved Restart</button>
+<button type="button" class="primary" data-boot-action="verify">Verify Boot Recovery</button>
+<button type="button" data-boot-action="reset">Reset Boot Lab</button>
+</div>
+<pre id="bootOutput" role="status"></pre>
+</section>
+
 <section id="fiber" hidden>
 <h3>Fiber Connectivity Troubleshooting</h3>
 <p>STOR-01 uplink to SW-01 is down.
@@ -246,6 +278,7 @@ let networkResolved=false;
 let diskResolved=false;
 let powerResolved=false;
 let fiberResolved=false;
+let bootResolved=false;
 const el=id=>document.getElementById(id);
 
 async function api(path,options){
@@ -268,6 +301,10 @@ function updateControls(){
     button.setAttribute("aria-pressed",String(button.dataset.id===selected));
   });
   el("save").disabled=busy||!selected;
+  document.querySelectorAll("[data-boot-action]").forEach(button=>{
+    button.disabled=busy||(bootResolved&&button.dataset.bootAction!=="reset");
+  });
+  el("bootUuid").disabled=busy||bootResolved;
   document.querySelectorAll("[data-fiber-action]").forEach(button=>{
     button.disabled=busy||(fiberResolved&&button.dataset.fiberAction!=="reset");
   });
@@ -320,6 +357,7 @@ async function refresh(){
   el("disk").hidden=id!=="INC-001";
   el("power").hidden=id!=="INC-003";
   el("fiber").hidden=id!=="INC-004";
+  el("boot").hidden=id!=="INC-005";
   el("events").replaceChildren();
   for(const event of incident.events){
     const li=document.createElement("li");
@@ -333,6 +371,7 @@ async function refresh(){
   if(id==="INC-001")showDisk(await api("/api/disk"));
   if(id==="INC-003")showPower(await api("/api/power"));
   if(id==="INC-004")showFiber(await api("/api/fiber"));
+  if(id==="INC-005")showBoot(await api("/api/boot"));
 }
 
 async function selectIncident(id){
@@ -516,6 +555,42 @@ document.querySelectorAll("[data-fiber-action]").forEach(button=>{
   });
 });
 
+
+function showBoot(state){
+  bootResolved=state.verified;
+  el("bootOutput").textContent=state.output;
+  const mark=value=>value?"done":"not checked";
+  el("bootEvidence").textContent=
+    "Console: "+mark(state.console_checked)+
+    " · Disks: "+mark(state.disks_checked)+
+    " · Configuration: "+mark(state.fstab_checked)+
+    " · Restart: "+mark(state.restarted);
+}
+document.querySelectorAll("[data-boot-action]").forEach(button=>{
+  button.addEventListener("click",async()=>{
+    if(busy)return;
+    const action=button.dataset.bootAction;
+    if(action==="reset"&&!confirm("Reset this boot lab? Notes and history remain."))return;
+    busy=true;
+    updateControls();
+    el("message").textContent="";
+    try{
+      await api("/api/boot/actions",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action,uuid:el("bootUuid").value})
+      });
+      if(action==="reset")el("bootUuid").value="";
+      await refresh();
+    }catch(error){
+      el("message").textContent=error.message;
+    }finally{
+      busy=false;
+      updateControls();
+    }
+  });
+});
+
 async function start(){
   try{
     const [incidents,devices]=await Promise.all([
@@ -535,7 +610,7 @@ async function start(){
       div.textContent=item.id+" · "+item.role+" · "+item.ip;
       el("devices").append(div);
     }
-    await selectIncident("INC-004");
+    await selectIncident("INC-005");
   }catch(error){el("message").textContent=error.message;}
 }
 

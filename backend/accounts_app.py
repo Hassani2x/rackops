@@ -15,7 +15,8 @@ from server import connect
 from network_app import get_network, perform_action
 from disk_app import get_disk, perform_disk_action
 from power_app import get_power, perform_power_action
-from fiber_app import initialize_fiber, get_fiber, perform_fiber_action
+from fiber_app import get_fiber, perform_fiber_action
+from boot_app import initialize_boot, get_boot, perform_boot_action
 from dashboard_app import get_dashboard
 from reports_app import build_report, ReportError
 
@@ -113,7 +114,7 @@ class Accounts:
                         with sqlite3.connect(str(self.legacy)) as original:
                             with sqlite3.connect(str(target)) as copy:
                                 original.backup(copy)
-                    initialize_fiber(target)
+                    initialize_boot(target)
                     db.execute(
                         "INSERT INTO users VALUES (?,?,?,?)",
                         (user["id"], username, salt, digest),
@@ -270,7 +271,7 @@ def make_accounts_handler(accounts, page):
 
                 user = accounts.user(self.token())
                 database = accounts.workspace(user)
-                initialize_fiber(database)
+                initialize_boot(database)
 
                 if not post:
                     if path == "/api/auth/me":
@@ -282,6 +283,7 @@ def make_accounts_handler(accounts, page):
                         "/api/disk": get_disk,
                         "/api/power": get_power,
                         "/api/fiber": get_fiber,
+                        "/api/boot": get_boot,
                         "/api/dashboard": get_dashboard,
                     }
                     if path in readers:
@@ -369,6 +371,10 @@ def make_accounts_handler(accounts, page):
                             raise AccountError(404, "Not found")
                     return self.send(201, {"ok": True})
 
+                if post and path == "/api/boot/actions":
+                    return self.send(200, perform_boot_action(
+                        database, data.get("action"), data.get("uuid")
+                    ))
                 actions = {
                     "/api/network/actions": perform_action,
                     "/api/disk/actions": perform_disk_action,
