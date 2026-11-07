@@ -83,6 +83,8 @@ class RackOpsTests(unittest.TestCase):
         required = {
             "powerStatus", "powerOutput", "powerTimeline",
             "powerReport", "powerReset", "powerVerify",
+            "fiberStatus", "fiberOutput", "fiberTimeline", "fiberReport", "fiberReset",
+            "bootStatus", "bootOutput", "bootTimeline", "bootReport", "bootReset", "bootUuid",
             "healthyCount", "attentionCount", "openCount", "resolvedCount",
             "diskStatus",
             "diskOutput",
@@ -142,7 +144,7 @@ class RackOpsTests(unittest.TestCase):
             if "id" in button
         }
 
-        for report_id in ["diskReport", "networkReport", "powerReport"]:
+        for report_id in ["diskReport", "networkReport", "powerReport", "fiberReport", "bootReport"]:
             with self.subTest(report=report_id):
                 self.assertIn(report_id, buttons)
                 self.assertIn(
@@ -154,3 +156,4 @@ class RackOpsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

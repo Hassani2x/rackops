@@ -143,6 +143,17 @@
         }
         li { margin-bottom: 10px; line-height: 1.5; }
         .status { font-weight: bold; color: #fbbf24; }
+        .lab-input {
+            display: block;
+            width: min(100%, 32rem);
+            margin-top: 8px;
+            padding: 12px;
+            font: inherit;
+            background: #080d18;
+            color: #e2e8f0;
+            border: 1px solid #64748b;
+            border-radius: 8px;
+        }
         @media (max-width: 700px) {
             main { grid-template-columns: 1fr; }
             .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -160,8 +171,9 @@
         <section class="panel wide">
             <h2>Operations Dashboard</h2>
             <p class="muted">
-                Five simulated devices and three incident labs.
-                Devices remain in attention until recovery is verified.
+                Five simulated devices and five incident labs.
+                Rack health tracks the disk, network, and power scenarios.
+                Fiber and boot recovery are independent exercises.
             </p>
             <dl class="stats">
                 <div class="stat">
@@ -325,6 +337,58 @@
             <pre id="powerOutput" role="status"></pre>
             <h3>Power Incident Timeline</h3>
             <ol id="powerTimeline"></ol>
+        </section>
+        <section class="panel wide">
+            <h2>INC-004 · Fiber Connectivity Loss</h2>
+            <p class="muted">The simulated STOR-01 fiber uplink is down. Compare link status, optical readings, and connector condition before choosing a fix.</p>
+            <p id="fiberStatus" class="status" role="status"></p>
+            <h3>Gather Evidence</h3>
+            <div class="actions">
+                <button class="action" data-fiber="link">Inspect Link Status</button>
+                <button class="action" data-fiber="optics">Inspect Optical Diagnostics</button>
+                <button class="action" data-fiber="connector">Inspect Connector</button>
+            </div>
+            <h3>Apply and Verify Recovery</h3>
+            <div class="actions">
+                <button class="action secondary" data-fiber="swap">Replace Optic</button>
+                <button class="action" data-fiber="correct">Clean Connector</button>
+                <button class="action" data-fiber="confirm">Reinspect Connector</button>
+                <button class="action" data-fiber="verify">Verify Fiber Recovery</button>
+            </div>
+            <pre id="fiberOutput" role="status"></pre>
+            <div class="actions">
+                <button id="fiberReport" class="action" disabled>Download Fiber Report</button>
+                <button id="fiberReset" class="action secondary">Reset Fiber Lab</button>
+            </div>
+            <h3>Incident Timeline</h3>
+            <ol id="fiberTimeline"></ol>
+        </section>
+        <section class="panel wide">
+            <h2>INC-005 · Server Boot Failure</h2>
+            <p class="muted">SRV-01 enters emergency mode after a filesystem configuration change. Investigate why the required archive mount fails.</p>
+            <p id="bootStatus" class="status" role="status"></p>
+            <h3>Gather Evidence</h3>
+            <div class="actions">
+                <button class="action" data-boot="console">Inspect Boot Console</button>
+                <button class="action" data-boot="disks">Inspect Disk Inventory</button>
+                <button class="action" data-boot="fstab">Inspect Filesystem Configuration</button>
+            </div>
+            <h3>Apply and Verify Recovery</h3>
+            <label for="bootUuid">Archive filesystem UUID from the disk inventory</label>
+            <input id="bootUuid" class="lab-input" maxlength="36" spellcheck="false" autocomplete="off">
+            <div class="actions">
+                <button class="action secondary" data-boot="format">Format Archive Disk</button>
+                <button class="action" data-boot="correct">Correct Archive Mount UUID</button>
+                <button class="action" data-boot="confirm">Perform Approved Restart</button>
+                <button class="action" data-boot="verify">Verify Boot Recovery</button>
+            </div>
+            <pre id="bootOutput" role="status"></pre>
+            <div class="actions">
+                <button id="bootReport" class="action" disabled>Download Boot Report</button>
+                <button id="bootReset" class="action secondary">Reset Boot Lab</button>
+            </div>
+            <h3>Incident Timeline</h3>
+            <ol id="bootTimeline"></ol>
         </section>
     </main>
 
@@ -527,6 +591,8 @@
                 localStorage.setItem(powerKey, JSON.stringify(power));
                 localStorage.setItem(diskKey, JSON.stringify(disk));
                 localStorage.setItem(networkKey, JSON.stringify(network));
+                fiberLab.save();
+                bootLab.save();
                 saveMessage = "Progress saved in this browser.";
             } catch (error) {
                 saveMessage =
@@ -581,8 +647,10 @@
             }).length;
 
             const resolved =
-                Number(disk.step === 4) + Number(network.resolved) + Number(power.resolved);
-            const open = 3 - resolved;
+                Number(disk.step === 4) + Number(network.resolved) +
+                Number(power.resolved) + Number(fiberLab.resolved()) +
+                Number(bootLab.resolved());
+            const open = 5 - resolved;
 
             document.getElementById("healthyCount").textContent = healthy;
             document.getElementById("attentionCount").textContent =
@@ -591,7 +659,7 @@
             document.getElementById("resolvedCount").textContent = resolved;
             document.getElementById("dashboardSummary").textContent =
                 healthy + " of " + total + " devices healthy. " +
-                resolved + " of 3 incidents resolved.";
+                resolved + " of 5 incidents resolved.";
         }
 
         function renderRack() {
@@ -665,6 +733,8 @@
 
         function render() {
             renderPower();
+            fiberLab.render();
+            bootLab.render();
             renderDashboard();
             renderRack();
             document.getElementById("saveStatus").textContent = saveMessage;
@@ -1052,7 +1122,140 @@
             ]);
         });
 
+        function createIncidentLab(config) {
+            const storageKey = "rackops." + config.name + ".v1";
+            const inspections = Object.keys(config.inspections);
+            const element = suffix => document.getElementById(config.name + suffix);
+            const buttons = document.querySelectorAll("[data-" + config.name + "]");
+
+            function fresh() {
+                return {
+                    checked: [], step: 0,
+                    output: "Choose an inspection to gather evidence.",
+                    timeline: [config.alert]
+                };
+            }
+
+            let state = loadState(storageKey, fresh, value =>
+                value && Number.isInteger(value.step) && value.step >= 0 && value.step <= 3 &&
+                Array.isArray(value.checked) && value.checked.every(key => inspections.includes(key)) &&
+                (value.step === 0 || inspections.every(key => value.checked.includes(key))) &&
+                typeof value.output === "string" && validTimeline(value.timeline)
+            );
+
+            function takeAction(action) {
+                if (state.step === 3) return;
+                let message;
+                if (inspections.includes(action)) {
+                    if (!state.checked.includes(action)) state.checked.push(action);
+                    message = config.inspections[action](state.step);
+                } else if (action === "correct") {
+                    if (!inspections.every(key => state.checked.includes(key))) {
+                        message = "More evidence required. Complete all three inspections first.";
+                    } else if (state.step > 0) {
+                        message = "Correction already applied. Complete the remaining recovery checks.";
+                    } else if (config.validCorrection && !config.validCorrection()) {
+                        message = "UUID mismatch. Use the archive filesystem UUID from the disk inventory.";
+                    } else {
+                        state.step = 1;
+                        message = config.correction;
+                    }
+                } else if (action === "confirm") {
+                    if (state.step === 0) {
+                        message = "Apply the evidence-based correction first.";
+                    } else {
+                        state.step = 2;
+                        message = config.confirmation;
+                    }
+                } else if (action === "verify") {
+                    if (state.step < 2) {
+                        message = config.verificationBlocked;
+                    } else {
+                        state.step = 3;
+                        message = config.verification;
+                    }
+                } else {
+                    message = config.blockedAction;
+                }
+                state.output = "SIMULATED LAB OUTPUT\n\n" + message;
+                logEvent(state.timeline, message);
+                save();
+                render();
+            }
+
+            buttons.forEach(button => button.addEventListener("click", () => {
+                takeAction(button.dataset[config.name]);
+            }));
+            element("Reset").addEventListener("click", () => {
+                state = fresh();
+                if (config.resetInput) config.resetInput();
+                save();
+                render();
+            });
+            element("Report").addEventListener("click", () => {
+                if (state.step !== 3) return;
+                downloadReport("RackOps-" + config.id + "-report.txt", [
+                    "Incident: " + config.id + " · " + config.title,
+                    "Status: Resolved", config.alert, config.correction,
+                    config.verification, "", "TIMELINE", ...state.timeline
+                ]);
+            });
+
+            return {
+                resolved: () => state.step === 3,
+                save: () => localStorage.setItem(storageKey, JSON.stringify(state)),
+                render: () => {
+                    const resolved = state.step === 3;
+                    element("Status").textContent = resolved ? "Resolved · Recovery verified" :
+                        state.step > 0 ? "Verification required" : "Open · Investigation required";
+                    element("Status").style.color = resolved ? "#34d399" : "#fbbf24";
+                    element("Output").textContent = state.output;
+                    buttons.forEach(button => { button.disabled = resolved; });
+                    element("Report").disabled = !resolved;
+                    renderTimeline(config.name + "Timeline", state.timeline);
+                }
+            };
+        }
+
+        const fiberLab = createIncidentLab({
+            name: "fiber", id: "INC-004", title: "Fiber Connectivity Loss",
+            alert: "Alert opened: STOR-01 fiber uplink to SW-01 is down.",
+            inspections: {
+                link: step => "Both interfaces are enabled. Operational link: " + (step >= 2 ? "UP." : "DOWN."),
+                optics: step => "Matching optics and fiber. Transmit diagnostics normal. Lab receive range: −12 to −1 dBm. Received power: " + (step >= 2 ? "−4 dBm, within range." : "−16 dBm, below range."),
+                connector: step => "Simulated optical-source isolation confirmed for inspection. " + (step >= 2 ? "Connector and mating interface passed reinspection." : step === 1 ? "Cleaning complete; reinspection still required." : "Contamination on the patch-cord endface. No physical damage observed.")
+            },
+            blockedAction: "Optic replacement deferred. The evidence points to a contaminated connector.",
+            correction: "Approved simulated connector cleaning completed. Reinspect before reconnecting.",
+            confirmation: "Connector and mating interface are clean. Simulated reconnection completed. Verify the link and traffic.",
+            verificationBlocked: "Recovery not verified. Clean and reinspect the connector first.",
+            verification: "Connector reinspection: PASS. Received power: −4 dBm, within the lab range. Link: UP. Traffic test: PASS."
+        });
+
+        const archiveUuid = "8f81c2ab-67d2-4e3f-9a30-3ca2bb46d051";
+        const staleUuid = "8f81c2ab-67d2-4e3f-9a30-3ca2bb46d099";
+        const uuidInput = document.getElementById("bootUuid");
+        const bootLab = createIncidentLab({
+            name: "boot", id: "INC-005", title: "Server Boot Failure",
+            alert: "Alert opened: SRV-01 in emergency mode; web service unavailable.",
+            inspections: {
+                console: step => step >= 2 ? "Normal startup completed. Web service started." :
+                    step === 1 ? "Configuration corrected. Approved restart required." :
+                    "Emergency mode. Required mount /mnt/archive failed waiting for UUID=" + staleUuid + ".",
+                disks: () => "Archive disk present, ext4 filesystem. Disk health checks: PASS.\nArchive filesystem UUID: " + archiveUuid,
+                fstab: step => "Root entry matches the plan. Required archive mount:\nUUID=" + (step > 0 ? archiveUuid : staleUuid) + " /mnt/archive ext4 defaults 0 2"
+            },
+            validCorrection: () => uuidInput.value.trim().toLowerCase() === archiveUuid,
+            resetInput: () => { uuidInput.value = ""; },
+            blockedAction: "Format blocked. The archive disk is healthy. Preserve its contents and correct the mount configuration.",
+            correction: "Approved simulated correction: backed up fstab and updated only the archive UUID to " + archiveUuid + ". Mount validation passed. Approved restart required.",
+            confirmation: "Approved simulated restart completed. Normal startup and archive mount succeeded. Verify service recovery.",
+            verificationBlocked: "Recovery not verified. Correct the UUID and complete the approved restart first.",
+            verification: "Normal startup: PASS. Archive mount: PASS. Web service: PASS. Lab HTTP health check: PASS. Root entry and disk contents preserved."
+        });
+
         render();
     </script>
 </body>
 </html>
+

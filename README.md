@@ -14,7 +14,7 @@ Explore a simulated rack, investigate incidents, gather evidence, apply correcti
 
 - Clickable rack inventory with five devices
 - Device roles, rack locations, lab IP addresses, and simulated health states
-- Two troubleshooting incidents
+- Five troubleshooting incidents covering disk usage, a VLAN mismatch, power redundancy, fiber connectivity, and server boot failure
 - Evidence requirements before changing the network configuration
 - Recovery verification before incidents can be resolved
 - Timestamped incident timelines
@@ -23,7 +23,7 @@ Explore a simulated rack, investigate incidents, gather evidence, apply correcti
 - Separate reset buttons for each lab
 - Responsive dark interface
 - Operations dashboard showing healthy devices, devices needing attention, open incidents, and resolved incidents
-- 17 automated checks: 7 structure checks and 10 browser tests
+- 19 demo checks: 7 structure checks and 12 browser tests
 - GitHub Actions runs both test suites on pushes and pull requests
 
 ## Incident 1: High Disk Usage
@@ -60,6 +60,8 @@ Follow-up: audit switch-port assignments against the network plan.
 
 ## Run Locally
 
+The public demo runs in the browser. The [Python backend](backend/) provides accounts and per-user progress for local use.
+
 Download this repository and open index.html in a modern web browser.
 
 No installation, Python server, or external dependencies are required.
@@ -79,7 +81,7 @@ Use the same browser and file location when testing saved progress. Browser sett
 
 Each incident has its own saved state.
 
-Refreshing the page restores progress when browser storage is available. Resetting one lab restarts that incident while preserving the other incident.
+Refreshing the page restores progress when browser storage is available. Each reset applies to a single incident.
 
 Local files and the hosted website use separate browser storage. Progress is not synchronized between them or between devices.
 
@@ -92,10 +94,8 @@ Local files and the hosted website use separate browser storage. Progress is not
 - Gather all network evidence, apply the VLAN fix, and verify both connectivity checks pass.
 - Confirm SRV-03 becomes Healthy after verification.
 - Refresh during an incident and after resolution to check saved progress.
-- Download both reports and review their findings and timelines.
+- Download resolved incident reports and review their findings and timelines.
 - Reset each lab and confirm its initial alert returns.
-
-These are manual checks. Automated tests have not yet been added.
 
 ## Limitations
 
@@ -111,8 +111,8 @@ RackOps is a simulated training lab.
 
 ## Planned Improvements
 
-- Automated tests for incident behavior
 - Additional troubleshooting scenarios
 - Backend inventory storage
 - Architecture documentation
 - Recorded project walkthrough
+
