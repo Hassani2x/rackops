@@ -14,7 +14,8 @@ from urllib.parse import urlsplit
 from server import connect
 from network_app import get_network, perform_action
 from disk_app import get_disk, perform_disk_action
-from power_app import initialize_power, get_power, perform_power_action
+from power_app import get_power, perform_power_action
+from fiber_app import initialize_fiber, get_fiber, perform_fiber_action
 from dashboard_app import get_dashboard
 from reports_app import build_report, ReportError
 
@@ -112,7 +113,7 @@ class Accounts:
                         with sqlite3.connect(str(self.legacy)) as original:
                             with sqlite3.connect(str(target)) as copy:
                                 original.backup(copy)
-                    initialize_power(target)
+                    initialize_fiber(target)
                     db.execute(
                         "INSERT INTO users VALUES (?,?,?,?)",
                         (user["id"], username, salt, digest),
@@ -269,6 +270,7 @@ def make_accounts_handler(accounts, page):
 
                 user = accounts.user(self.token())
                 database = accounts.workspace(user)
+                initialize_fiber(database)
 
                 if not post:
                     if path == "/api/auth/me":
@@ -279,6 +281,7 @@ def make_accounts_handler(accounts, page):
                         "/api/network": get_network,
                         "/api/disk": get_disk,
                         "/api/power": get_power,
+                        "/api/fiber": get_fiber,
                         "/api/dashboard": get_dashboard,
                     }
                     if path in readers:
@@ -370,6 +373,7 @@ def make_accounts_handler(accounts, page):
                     "/api/network/actions": perform_action,
                     "/api/disk/actions": perform_disk_action,
                     "/api/power/actions": perform_power_action,
+                    "/api/fiber/actions": perform_fiber_action,
                 }
                 if post and path in actions:
                     return self.send(

@@ -122,6 +122,34 @@ They include the saved incident timeline and your investigation notes.</p>
 
 
 
+
+<section id="fiber" hidden>
+<h3>Fiber Connectivity Troubleshooting</h3>
+<p>STOR-01 uplink to SW-01 is down.
+Inspect the evidence before changing components.</p>
+<p class="muted">All actions and optical readings are simulated.
+Connector work assumes approved source isolation and appropriate equipment.</p>
+<h4>Gather Evidence</h4>
+<div class="actions">
+<button type="button" data-fiber-action="link">Inspect Link Status</button>
+<button type="button" data-fiber-action="optics">Inspect Optical Diagnostics</button>
+<button type="button" data-fiber-action="connector">Inspect Connector</button>
+</div>
+<p id="fiberEvidence" class="muted"></p>
+<h4>Choose a Corrective Action</h4>
+<div class="actions">
+<button type="button" data-fiber-action="swap">Replace Optic</button>
+<button type="button" data-fiber-action="reboot">Reboot Storage Server</button>
+<button type="button" class="primary" data-fiber-action="clean">Clean Connector</button>
+</div>
+<div class="actions">
+<button type="button" class="primary" data-fiber-action="reinspect">Reinspect Connector</button>
+<button type="button" class="primary" data-fiber-action="verify">Verify Fiber Recovery</button>
+<button type="button" data-fiber-action="reset">Reset Fiber Lab</button>
+</div>
+<pre id="fiberOutput" role="status"></pre>
+</section>
+
 <section id="power" hidden>
 <h3>Power Redundancy Troubleshooting</h3>
 <p>SRV-01 remains online on PSU B. Investigate the lost redundancy
@@ -217,6 +245,7 @@ let busy=false;
 let networkResolved=false;
 let diskResolved=false;
 let powerResolved=false;
+let fiberResolved=false;
 const el=id=>document.getElementById(id);
 
 async function api(path,options){
@@ -239,6 +268,9 @@ function updateControls(){
     button.setAttribute("aria-pressed",String(button.dataset.id===selected));
   });
   el("save").disabled=busy||!selected;
+  document.querySelectorAll("[data-fiber-action]").forEach(button=>{
+    button.disabled=busy||(fiberResolved&&button.dataset.fiberAction!=="reset");
+  });
   el("reportDownload").disabled=busy||!reportReady;
   document.querySelectorAll("[data-power-action]").forEach(button=>{
     button.disabled=busy||(powerResolved&&button.dataset.powerAction!=="reset");
@@ -287,6 +319,7 @@ async function refresh(){
   el("otherInfo").hidden=true;
   el("disk").hidden=id!=="INC-001";
   el("power").hidden=id!=="INC-003";
+  el("fiber").hidden=id!=="INC-004";
   el("events").replaceChildren();
   for(const event of incident.events){
     const li=document.createElement("li");
@@ -299,6 +332,7 @@ async function refresh(){
   if(isNetwork)showNetwork(await api("/api/network"));
   if(id==="INC-001")showDisk(await api("/api/disk"));
   if(id==="INC-003")showPower(await api("/api/power"));
+  if(id==="INC-004")showFiber(await api("/api/fiber"));
 }
 
 async function selectIncident(id){
@@ -447,6 +481,41 @@ el("reportDownload").addEventListener("click",async()=>{
   }
 });
 
+
+function showFiber(state){
+  fiberResolved=state.verified;
+  el("fiberOutput").textContent=state.output;
+  const mark=value=>value?"done":"not checked";
+  el("fiberEvidence").textContent=
+    "Link: "+mark(state.link_checked)+
+    " · Optics: "+mark(state.optics_checked)+
+    " · Connector: "+mark(state.connector_checked)+
+    " · Post-clean reinspection: "+mark(state.reinspected);
+}
+document.querySelectorAll("[data-fiber-action]").forEach(button=>{
+  button.addEventListener("click",async()=>{
+    if(busy)return;
+    const action=button.dataset.fiberAction;
+    if(action==="reset"&&!confirm("Reset this fiber lab? Notes and history remain."))return;
+    busy=true;
+    updateControls();
+    el("message").textContent="";
+    try{
+      await api("/api/fiber/actions",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action})
+      });
+      await refresh();
+    }catch(error){
+      el("message").textContent=error.message;
+    }finally{
+      busy=false;
+      updateControls();
+    }
+  });
+});
+
 async function start(){
   try{
     const [incidents,devices]=await Promise.all([
@@ -466,7 +535,7 @@ async function start(){
       div.textContent=item.id+" · "+item.role+" · "+item.ip;
       el("devices").append(div);
     }
-    await selectIncident("INC-003");
+    await selectIncident("INC-004");
   }catch(error){el("message").textContent=error.message;}
 }
 
